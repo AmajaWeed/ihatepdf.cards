@@ -1,0 +1,249 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="iHateCards.MainWindow"
+        Title="iHateCards"
+        Width="1480" Height="920"
+        MinWidth="1024" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#161616">
+
+  <Grid ColumnDefinitions="320,*,300">
+
+    <!-- ЛЕВЫЙ САЙДБАР -->
+    <Border Grid.Column="0" Classes="panel" BorderThickness="0,0,1,0">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="16" Spacing="4">
+
+          <TextBlock Text="iHateCards" FontSize="20" FontWeight="Bold" Foreground="#52a8e0" Margin="0,0,0,4"/>
+
+          <TextBlock Classes="sectionTitle" Text="ИЗОБРАЖЕНИЯ"/>
+          <TextBlock Text="● Лицевые стороны" Foreground="#52a8e0" FontSize="12" Margin="0,2,0,4"/>
+          <Border Name="DropFront" Classes="dropzone">
+            <StackPanel Spacing="2">
+              <TextBlock Text="📁" HorizontalAlignment="Center" FontSize="18"/>
+              <TextBlock Text="Перетащите, выберите или вставьте Ctrl+V"
+                         Classes="muted" TextWrapping="Wrap" TextAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Name="SingleBackArea" Spacing="4" Margin="0,8,0,0">
+            <TextBlock Text="● Рубашка" Foreground="#7a8290" FontSize="12"/>
+            <Border Name="DropBack" Classes="dropzone">
+              <StackPanel Spacing="2">
+                <TextBlock Text="🂠" HorizontalAlignment="Center" FontSize="18"/>
+                <TextBlock Text="Перетащите или выберите" Classes="muted" TextAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <Border Name="BackPreviewBox" Classes="subCard" IsVisible="False">
+              <Grid ColumnDefinitions="44,*,Auto">
+                <Image Name="BackPreviewImage" Width="40" Height="40" Stretch="UniformToFill"/>
+                <TextBlock Name="BackPreviewName" Grid.Column="1" VerticalAlignment="Center"
+                           Margin="8,0" TextTrimming="CharacterEllipsis"/>
+                <Button Name="BackRemoveBtn" Grid.Column="2" Content="×" Padding="8,2"
+                        Background="Transparent" Foreground="#f87171"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+          <TextBlock Name="IndividualBackHint" Classes="muted" IsVisible="False" TextWrapping="Wrap"
+                     Text="Назначьте рубашку каждой карте через список карт справа" Margin="0,8,0,0"/>
+
+          <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+            <ToggleSwitch Name="IndividualBacksToggle"/>
+            <TextBlock Grid.Column="1" Text="Разные рубашки для каждой карты"
+                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,0,0,0"/>
+          </Grid>
+
+          <TextBlock Classes="sectionTitle" Text="ФОРМАТ БУМАГИ"/>
+          <ComboBox Name="PaperSizeCombo"/>
+
+          <StackPanel Name="PhotoLayoutSection" IsVisible="False">
+            <TextBlock Classes="sectionTitle" Text="РАСКЛАДКА ФОТО НА ЛИСТЕ"/>
+            <ComboBox Name="PhotoLayoutCombo"/>
+            <TextBlock Name="PhotoLayoutInfo" Classes="muted" IsVisible="False" Margin="0,4,0,0"/>
+          </StackPanel>
+
+          <StackPanel Name="CardSizeSection">
+            <TextBlock Classes="sectionTitle" Text="РАЗМЕР КАРТЫ С БЛИДОМ (ММ)"/>
+            <Grid ColumnDefinitions="*,*,*" >
+              <StackPanel Margin="0,0,4,0">
+                <TextBlock Text="Ширина" Classes="muted"/>
+                <NumericUpDown Name="CardWidthInput" Minimum="10" Maximum="420" Increment="1" Value="65" FormatString="0.#" ShowButtonSpinner="False"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="2,0">
+                <TextBlock Text="Высота" Classes="muted"/>
+                <NumericUpDown Name="CardHeightInput" Minimum="10" Maximum="420" Increment="1" Value="90" FormatString="0.#" ShowButtonSpinner="False"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                <TextBlock Text="Блид" Classes="muted"/>
+                <NumericUpDown Name="BleedInput" Minimum="0" Maximum="10" Increment="0.5" Value="0" FormatString="0.#" ShowButtonSpinner="False"/>
+              </StackPanel>
+            </Grid>
+            <TextBlock Name="CutSizeDisplay" Classes="muted" Margin="0,4,0,0" Text="Размер реза: 65 × 90 мм"/>
+          </StackPanel>
+
+          <TextBlock Classes="sectionTitle" Text="РЕЖИМ ПЕЧАТИ"/>
+          <StackPanel Spacing="2">
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="DuplexToggle"/>
+              <TextBlock Grid.Column="1" Text="Двухсторонняя печать" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="CropMarksToggle" IsChecked="True"/>
+              <TextBlock Grid.Column="1" Text="Метки для резки" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid Name="CropMarksSubOptions" ColumnDefinitions="Auto,*" Margin="24,0,0,0">
+              <ToggleSwitch Name="NoHaloToggle"/>
+              <TextBlock Grid.Column="1" Text="Метки без белой обводки" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="FitImageToggle"/>
+              <TextBlock Grid.Column="1" Text="Вписать изображение" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="AutoRotateToggle"/>
+              <TextBlock Grid.Column="1" Text="Авто-разворот" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="PolaroidToggle"/>
+              <TextBlock Grid.Column="1" Text="Рамка Полароид" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="BorderlessToggle"/>
+              <TextBlock Grid.Column="1" Text="Печать без полей" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+            <Grid Name="CalibModeRow" ColumnDefinitions="Auto,*" IsVisible="False">
+              <ToggleSwitch Name="CalibModeToggle"/>
+              <TextBlock Grid.Column="1" Text="Калибровка 2 сторон" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+          </StackPanel>
+
+          <Border Name="CalibOptions" Classes="subCard" IsVisible="False" Margin="0,8,0,0">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Калибровка печати" FontWeight="Bold"/>
+              <Button Name="CalibTargetBtn" Classes="secondary" Content="Скачать мишень PDF"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap"
+                Text="Распечатайте мишень, отсканируйте обе стороны и загрузите сканы — программа выровняет печать по центру."/>
+              <TextBlock Text="● Скан: ЛИЦО" Foreground="#52a8e0" FontSize="12"/>
+              <Border Name="CalibDropFront" Classes="dropzone" Padding="8">
+                <TextBlock Text="Перетащите или выберите скан" Classes="muted" TextAlignment="Center"/>
+              </Border>
+              <TextBlock Name="CalibResultFront" Classes="muted" IsVisible="False"/>
+              <TextBlock Text="● Скан: ОБОРОТ" Foreground="#7a8290" FontSize="12"/>
+              <Border Name="CalibDropBack" Classes="dropzone" Padding="8">
+                <TextBlock Text="Перетащите или выберите скан" Classes="muted" TextAlignment="Center"/>
+              </Border>
+              <TextBlock Name="CalibResultBack" Classes="muted" IsVisible="False"/>
+              <Button Name="CalibResetBtn" Classes="secondary" Content="Сбросить калибровку"/>
+            </StackPanel>
+          </Border>
+
+          <Border Name="PolaroidOptions" Classes="subCard" IsVisible="False" Margin="0,8,0,0">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Настройки Полароид" FontWeight="Bold"/>
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Margin="0,0,4,0">
+                  <TextBlock Text="Бок (мм)" Classes="muted"/>
+                  <NumericUpDown Name="PolaroidSideInput" Minimum="1" Maximum="20" Increment="0.5" Value="3" FormatString="0.#" ShowButtonSpinner="False"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="2,0">
+                  <TextBlock Text="Верх (мм)" Classes="muted"/>
+                  <NumericUpDown Name="PolaroidTopInput" Minimum="1" Maximum="20" Increment="0.5" Value="3" FormatString="0.#" ShowButtonSpinner="False"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                  <TextBlock Text="Низ (мм)" Classes="muted"/>
+                  <NumericUpDown Name="PolaroidBottomInput" Minimum="2" Maximum="40" Increment="0.5" Value="15" FormatString="0.#" ShowButtonSpinner="False"/>
+                </StackPanel>
+              </Grid>
+              <TextBlock Name="PolaroidInfo" Classes="muted"/>
+            </StackPanel>
+          </Border>
+
+          <Border Name="DuplexOptions" Classes="subCard" IsVisible="False" Margin="0,8,0,0">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Смещение оборота (мм)" FontWeight="Bold"/>
+              <Grid ColumnDefinitions="*,*">
+                <StackPanel Margin="0,0,4,0">
+                  <TextBlock Text="По X" Classes="muted"/>
+                  <NumericUpDown Name="OffsetXInput" Minimum="-50" Maximum="50" Increment="0.1" Value="0" FormatString="0.##" ShowButtonSpinner="False"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                  <TextBlock Text="По Y" Classes="muted"/>
+                  <NumericUpDown Name="OffsetYInput" Minimum="-50" Maximum="50" Increment="0.1" Value="0" FormatString="0.##" ShowButtonSpinner="False"/>
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <!-- ЦЕНТР: ПРЕВЬЮ -->
+    <Grid Grid.Column="1" RowDefinitions="*,Auto" Name="PreviewCol">
+      <Border Grid.Row="0" Padding="16">
+        <Image Name="PreviewImage" Stretch="Uniform"
+               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center"
+                  Spacing="10" Margin="0,0,0,14">
+        <Button Name="SoftproofBtn" Classes="secondary" Content="Просм. RGB"/>
+        <Button Name="PrevPageBtn" Classes="secondary" Content="←" Padding="14,8"/>
+        <TextBlock Name="PageIndicator" Text="Лист 1 из 1" VerticalAlignment="Center"/>
+        <Button Name="NextPageBtn" Classes="secondary" Content="→" Padding="14,8"/>
+        <Button Name="PageTypeBtn" Content="ЛИЦО" Padding="14,8"
+                Background="#152430" Foreground="#52a8e0" FontWeight="Bold" CornerRadius="6"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- ПРАВАЯ ПАНЕЛЬ -->
+    <Border Grid.Column="2" Classes="panel" BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="14">
+        <TextBlock Grid.Row="0" Classes="sectionTitle" Text="КАРТЫ"/>
+        <ScrollViewer Grid.Row="1">
+          <StackPanel Name="ImageListPanel" Spacing="6"/>
+        </ScrollViewer>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" Margin="0,10,0,10">
+          <StackPanel HorizontalAlignment="Center">
+            <TextBlock Text="Карт/лист" Classes="muted" TextAlignment="Center"/>
+            <TextBlock Name="StatCardsPerPage" Text="9" FontSize="16" FontWeight="Bold" TextAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+            <TextBlock Text="Листов" Classes="muted" TextAlignment="Center"/>
+            <TextBlock Name="StatTotalPages" Text="1" FontSize="16" FontWeight="Bold" TextAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+            <TextBlock Text="Всего карт" Classes="muted" TextAlignment="Center"/>
+            <TextBlock Name="StatTotalCards" Text="0" FontSize="16" FontWeight="Bold" TextAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+            <TextBlock Text="Формат" Classes="muted" TextAlignment="Center"/>
+            <TextBlock Name="StatFormat" Text="A4" FontSize="16" FontWeight="Bold" TextAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Spacing="8">
+          <Button Name="ExportBtn" Classes="accent" Content="Экспорт PDF (CMYK)" IsEnabled="False"
+                  ToolTip.Tip="Экспорт в CMYK US Web Coated (SWOP), PDF/X-1a"/>
+          <Button Name="PrintBtn" Classes="secondary" Content="Печать (CMYK)" IsEnabled="False"
+                  ToolTip.Tip="Прямая печать в CMYK (PostScript) на выбранный принтер, без RGB"/>
+          <Grid ColumnDefinitions="*,*">
+            <Button Name="SaveProjectBtn" Classes="secondary" Content="Сохранить" Margin="0,0,4,0"
+                    ToolTip.Tip="Сохранить проект .hate (Ctrl+S)"/>
+            <Button Name="OpenProjectBtn" Grid.Column="1" Classes="secondary" Content="Открыть" Margin="4,0,0,0"
+                    ToolTip.Tip="Открыть проект .hate (Ctrl+O)"/>
+          </Grid>
+          <Button Name="ClearBtn" Classes="secondary" Content="Очистить"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ОВЕРЛЕЙ ЗАГРУЗКИ -->
+    <Border Name="LoadingOverlay" Grid.ColumnSpan="3" Background="#CC161616" IsVisible="False">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+        <ProgressBar IsIndeterminate="True" Width="220"/>
+        <TextBlock Name="LoadingText" Text="Экспорт..." HorizontalAlignment="Center"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

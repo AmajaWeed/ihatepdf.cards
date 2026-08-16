@@ -1,0 +1,96 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="iHateCards.App"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme />
+
+    <!-- Палитра оригинального iHateCards -->
+    <Style Selector="Window">
+      <Setter Property="Background" Value="#161616"/>
+      <Setter Property="Foreground" Value="#eef0f6"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style Selector="TextBlock.sectionTitle">
+      <Setter Property="Foreground" Value="#9a9ea8"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Margin" Value="0,10,0,6"/>
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="#9a9ea8"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="#52a8e0"/>
+      <Setter Property="Foreground" Value="#ffffff"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="12,9"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#7cc1ee"/>
+    </Style>
+
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="#242424"/>
+      <Setter Property="Foreground" Value="#eef0f6"/>
+      <Setter Property="BorderBrush" Value="#363636"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Border.dropzone">
+      <Setter Property="BorderBrush" Value="#363636"/>
+      <Setter Property="BorderThickness" Value="2"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="10,12"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Border.dropzone:pointerover">
+      <Setter Property="BorderBrush" Value="#52a8e0"/>
+      <Setter Property="Background" Value="#152430"/>
+    </Style>
+
+    <Style Selector="ToggleSwitch">
+      <Setter Property="OnContent" Value="{x:Null}"/>
+      <Setter Property="OffContent" Value="{x:Null}"/>
+      <Setter Property="MinWidth" Value="0"/>
+    </Style>
+
+    <Style Selector="NumericUpDown">
+      <Setter Property="Background" Value="#242424"/>
+      <Setter Property="BorderBrush" Value="#363636"/>
+      <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#242424"/>
+      <Setter Property="BorderBrush" Value="#363636"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="#1d1d1d"/>
+      <Setter Property="BorderBrush" Value="#363636"/>
+    </Style>
+
+    <Style Selector="Border.subCard">
+      <Setter Property="Background" Value="#1f1f1f"/>
+      <Setter Property="BorderBrush" Value="#363636"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="10"/>
+    </Style>
+  </Application.Styles>
+</Application>
