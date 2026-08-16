@@ -9,6 +9,8 @@
     <RootNamespace>iHateCards</RootNamespace>
     <ApplicationIcon Condition="Exists('Assets/app.ico')">Assets/app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>ru;en</SatelliteResourceLanguages>
+    <!-- В дистрибутив не тащим отладочные символы (иначе +100 МБ) -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

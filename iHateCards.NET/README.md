@@ -32,7 +32,7 @@
 | `src/iHateCards/Printing/` | winspool P/Invoke (RAW, свойства принтера), TCP:9100, Ghostscript, определение IP |
 | `src/iHateCards/Project/` | Формат `.hate`, настройки |
 | `src/iHateCards/Dialogs/` | Диалог печати, сообщения |
-| `installer/iHateCards.iss` | Inno Setup (ассоциация `.hate`) |
+| `installer/` | Установщик MSI (`build-installer.sh` + `iHateCards.wixl.wxs`), альтернативно Inno Setup (`iHateCards.iss`) |
 
 ## Запуск из исходников (Windows / macOS / Linux)
 
@@ -49,8 +49,26 @@ dotnet run --project src/iHateCards
 dotnet publish src/iHateCards/iHateCards.csproj -c Release -r win-x64 --self-contained -o publish/win-x64
 ```
 
-Затем скомпилировать `installer/iHateCards.iss` в Inno Setup. .NET на машине
-пользователя не нужен (self-contained). WebView2/браузерных зависимостей нет.
+.NET на машине пользователя не нужен (self-contained), WebView2/браузерных
+зависимостей нет. Размер каталога ~140 МБ.
+
+## Установщик (MSI)
+
+```
+./installer/build-installer.sh
+```
+
+Скрипт публикует приложение и собирает `publish/iHateCards-2.0.0-x64.msi`
+(~63 МБ): установка в `Program Files\iHateCards`, ярлыки в меню «Пуск» и на
+рабочем столе, **ассоциация файлов `.hate`** (двойной клик открывает проект),
+запись в «Программы и компоненты» с корректным удалением.
+
+Сборка работает и не под Windows — нужен `msitools`:
+`brew install msitools` (macOS) или `apt install msitools` (Linux).
+На Windows тот же `.wxs` собирается WiX v3 (`candle`/`light`).
+
+Альтернатива для Windows: `installer/iHateCards.iss` (Inno Setup) — EXE-установщик
+с тем же набором (ярлыки, ассоциация `.hate`); требует установленного Inno Setup.
 
 ## Зависимости для печати
 

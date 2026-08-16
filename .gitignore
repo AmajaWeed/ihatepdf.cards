@@ -1,9 +1,9 @@
 # Build artifacts
-dist/
-dist2/
-build/
-build2/
-installer/
+/dist/
+/dist2/
+/build/
+/build2/
+/installer/
 *.spec
 __pycache__/
 *.pyc
