@@ -1,0 +1,18 @@
+# Build artifacts
+dist/
+dist2/
+build/
+build2/
+installer/
+*.spec
+__pycache__/
+*.pyc
+
+# Temp / local
+_tmp.iss
+_chk.py
+diag*.py
+dist_old_locked/
+
+# Large downloadable bundle (fetched at build time)
+MicrosoftEdgeWebview2Setup.exe

@@ -1,0 +1,4 @@
+ЗАПУСК
+------
+Готовое приложение:
+    dist\iHateCards\iHateCards.exe
