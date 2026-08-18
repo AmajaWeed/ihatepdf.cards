@@ -48,6 +48,12 @@ else
     echo "==> macOS-пакеты пропущены (нужна сборка на macOS)"
 fi
 
+# --- образы macOS для людей (обновлятору нужны zip, человеку удобнее dmg) ---
+
+for dmg in "$ROOT"/publish/iHateCards-"$VERSION"-*.dmg; do
+    [ -f "$dmg" ] && cp "$dmg" "$OUT/"
+done
+
 # --- установщик Windows ---------------------------------------------------
 
 if command -v wixl >/dev/null 2>&1; then
