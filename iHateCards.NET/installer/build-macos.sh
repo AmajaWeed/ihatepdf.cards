@@ -72,12 +72,27 @@ codesign --force --deep --sign - "$APP" 2>/dev/null || echo "   (codesign нед
 
 echo "==> DMG"
 rm -f "$DMG"
-STAGE="$ROOT/publish/dmg-stage"
-rm -rf "$STAGE"; mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "iHateCards $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
-rm -rf "$STAGE"
+
+# Оформленный образ: слева программа, справа папка «Программы», между ними
+# стрелка — пользователь перетаскивает приложение и тем самым устанавливает его.
+# dmgbuild пишет оформление напрямую (без автоматизации Finder), поэтому
+# работает и в сборочных скриптах: pip install --user dmgbuild
+if python3 -c "import dmgbuild" >/dev/null 2>&1; then
+    python3 -m dmgbuild \
+        -s "$ROOT/installer/dmg-settings.py" \
+        -D here="$ROOT/installer" \
+        -D app="$APP" \
+        "iHateCards $VERSION" "$DMG" >/dev/null
+else
+    echo "   dmgbuild не установлен — собираю простой образ без оформления"
+    echo "   (pip install --user dmgbuild — и окно получит фон со стрелкой)"
+    STAGE="$ROOT/publish/dmg-stage"
+    rm -rf "$STAGE"; mkdir -p "$STAGE"
+    cp -R "$APP" "$STAGE/"
+    ln -s /Applications "$STAGE/Applications"
+    hdiutil create -volname "iHateCards $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+    rm -rf "$STAGE"
+fi
 
 echo
 echo "Готово:"
