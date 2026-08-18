@@ -1,4 +1,5 @@
 using Avalonia;
+using iHateCards.Diagnostics;
 
 namespace iHateCards;
 
@@ -7,6 +8,17 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Падения приложения — самое ценное для отладки, поэтому пишутся в
+        // журнал, если режим разработчика включён (DevLog сам это проверяет).
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            DevLog.LogException("Crash", "необработанное исключение", e.ExceptionObject as Exception
+                ?? new Exception(e.ExceptionObject?.ToString() ?? "неизвестная ошибка"));
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            DevLog.LogException("Crash", "необработанное исключение в фоновой задаче", e.Exception);
+            e.SetObserved();
+        };
+
         if (args.Length > 0 && args[0] == "--update-now")
         {
             Environment.Exit(RunUpdateFromCommandLine());

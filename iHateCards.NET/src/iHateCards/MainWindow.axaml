@@ -260,6 +260,8 @@
           <Button Name="ClearBtn" Classes="secondary" Content="Очистить"/>
           <Button Name="UpdateBtn" Classes="secondary" Content="Проверить обновления"
                   ToolTip.Tip="Проверить наличие новой версии"/>
+          <Button Name="DebugBtn" Classes="secondary" Content="Диагностика…"
+                  ToolTip.Tip="Журнал отладки: печать, обновления, сохранение проектов"/>
         </StackPanel>
       </Grid>
     </Border>

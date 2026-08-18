@@ -9,6 +9,7 @@ using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using iHateCards.Core;
 using iHateCards.Dialogs;
+using iHateCards.Diagnostics;
 using iHateCards.Imaging;
 using iHateCards.Pdf;
 using iHateCards.Printing;
@@ -364,6 +365,7 @@ public partial class MainWindow : Window
         };
 
         UpdateBtn.Click += async (_, _) => await CheckForUpdatesAsync(silent: false);
+        DebugBtn.Click += async (_, _) => await new DebugDialog().ShowDialog(this);
         SaveProjectBtn.Click += async (_, _) => await SaveProject(saveAs: false);
         OpenProjectBtn.Click += async (_, _) => await OpenProjectViaDialog();
 
@@ -959,10 +961,12 @@ public partial class MainWindow : Window
             try
             {
                 File.WriteAllBytes(path, BuildCmykPdfBytes());
+                DevLog.Log("Export", $"успех: '{path}', листов={_s.TotalPages}, формат={_s.Paper.Width}x{_s.Paper.Height}мм");
             }
             catch (Exception ex)
             {
                 error = ex.Message;
+                DevLog.LogException("Export", $"ошибка экспорта: '{path}'", ex);
             }
         }));
         if (error != null) await Msg.Show(this, "Ошибка экспорта", error);
@@ -1151,8 +1155,8 @@ public partial class MainWindow : Window
         string savePath = path;
         await WithOverlay("Сохранение...", () => Task.Run(() =>
         {
-            try { HateFile.Save(_s, savePath); }
-            catch (Exception ex) { error = ex.Message; }
+            try { HateFile.Save(_s, savePath); DevLog.Log("Project", $"сохранено: '{savePath}'"); }
+            catch (Exception ex) { error = ex.Message; DevLog.LogException("Project", $"ошибка сохранения: '{savePath}'", ex); }
         }));
         if (error != null)
         {
@@ -1191,8 +1195,8 @@ public partial class MainWindow : Window
         string? error = null;
         await WithOverlay("Открытие...", () => Task.Run(() =>
         {
-            try { loaded = HateFile.Open(path); }
-            catch (Exception ex) { error = ex.Message; }
+            try { loaded = HateFile.Open(path); DevLog.Log("Project", $"открыто: '{path}'"); }
+            catch (Exception ex) { error = ex.Message; DevLog.LogException("Project", $"ошибка открытия: '{path}'", ex); }
         }));
         if (loaded == null)
         {
@@ -1299,6 +1303,7 @@ public partial class MainWindow : Window
 
         var app = new NativeMenuItem("iHateCards") { Menu = new NativeMenu() };
         app.Menu.Add(Item("Проверить обновления…", null, () => CheckForUpdatesAsync(silent: false)));
+        app.Menu.Add(Item("Диагностика…", null, () => new DebugDialog().ShowDialog(this)));
 
         var menu = new NativeMenu();
         menu.Add(file);
@@ -1311,6 +1316,7 @@ public partial class MainWindow : Window
         SaveProjectBtn.IsVisible = false;
         OpenProjectBtn.IsVisible = false;
         UpdateBtn.IsVisible = false;
+        DebugBtn.IsVisible = false;
         FileButtonsRow.IsVisible = false;
     }
 

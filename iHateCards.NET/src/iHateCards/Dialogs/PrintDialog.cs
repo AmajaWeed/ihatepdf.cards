@@ -67,10 +67,23 @@ public sealed class PrintDialog : Window
         var propsBtn = Secondary("Свойства");
         ToolTip.SetTip(propsBtn, OperatingSystem.IsWindows()
             ? "Системный диалог драйвера принтера"
-            : "Системные настройки «Принтеры и сканеры»");
+            : "macOS не даёт сторонним приложениям открыть настройки именно этого принтера — "
+              + "только общий список. Тип бумаги для печати из iHateCards настраивается ниже, "
+              + "в разделе «Бумага».");
         propsBtn.Click += async (_, _) =>
         {
-            try { PrinterProperties.Open(CurrentPrinter()); }
+            try
+            {
+                PrinterProperties.Open(CurrentPrinter());
+                if (PrinterProperties.OpensGenericListOnly)
+                    await Msg.Show(this, "Свойства принтера",
+                        "Открылся общий список принтеров macOS — точечно перейти в настройки "
+                        + "именно этого принтера сторонним приложениям система не позволяет "
+                        + "(это ограничение macOS, не программы). Найдите принтер в списке и "
+                        + "откройте его вручную, либо настройте тип и плотность бумаги прямо "
+                        + "здесь, в разделе «Бумага» ниже — так они точно применятся к печати "
+                        + "из iHateCards.");
+            }
             catch (Exception ex) { await Msg.Show(this, "Свойства принтера", ex.Message); }
         };
 

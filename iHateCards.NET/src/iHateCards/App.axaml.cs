@@ -44,9 +44,12 @@ public partial class App : Application
             // Демонстрационная раскладка для скриншота диалога
             var demoState = new Core.AppState { DuplexMode = true };
             Core.LayoutEngine.CalculateLayout(demoState);
-            Avalonia.Controls.Window dlg = DialogShotKind == "duplex"
-                ? new Dialogs.DuplexSettingsDialog(PrinterProfile.Load(def))
-                : new Dialogs.PrintDialog(printers, def, demoState);
+            Avalonia.Controls.Window dlg = DialogShotKind switch
+            {
+                "duplex" => new Dialogs.DuplexSettingsDialog(PrinterProfile.Load(def)),
+                "debug" => new Dialogs.DebugDialog(),
+                _ => new Dialogs.PrintDialog(printers, def, demoState)
+            };
             dialogLifetime.MainWindow = dlg;
             dlg.Opened += async (_, _) =>
             {

@@ -540,6 +540,20 @@ public static class SelfTest
                           (def.Length > 0 ? $", по умолчанию: {def}" : ""));
         Check(printers.Count == 0 || printers.All(p => p.Length > 0), "имена очередей непустые");
         Check(def.Length == 0 || printers.Contains(def), "принтер по умолчанию есть в списке");
+
+        // Реальные варианты бумаги у драйвера — критично для «Xerox печатает
+        // не на той бумаге»: список должен приходить от самого принтера
+        // (значения PPD/IPP, которые понимает `lp -o media-type=`), а не быть
+        // общей заглушкой из нескольких слов на любой случай.
+        if (def.Length > 0)
+        {
+            var media = Printing.PrinterMedia.MediaTypes(def);
+            bool isFallback = media.Count == Printing.PrinterMedia.CommonTypes.Length
+                && media.Select(m => m.Name).SequenceEqual(Printing.PrinterMedia.CommonTypes);
+            Console.WriteLine($"  типы бумаги '{def}': {string.Join(", ", media.Select(m => m.Name))}"
+                + (isFallback ? "  (заглушка — драйвер не ответил)" : "  (от драйвера)"));
+            Check(media.Count > 0, "список типов бумаги не пуст");
+        }
     }
 
     private static void TestPrinterProfile()

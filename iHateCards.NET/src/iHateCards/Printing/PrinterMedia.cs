@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
@@ -41,6 +42,11 @@ public static class PrinterMedia
                 // драйвер не отвечает — ниже вернём типовой список
             }
         }
+        if (OperatingSystem.IsMacOS())
+        {
+            var real = CupsChoices(printer, "MediaType");
+            if (real.Count > 0) return real.Select(n => new MediaOption(n, 0)).ToList();
+        }
         return CommonTypes.Select(t => new MediaOption(t, 0)).ToList();
     }
 
@@ -61,7 +67,62 @@ public static class PrinterMedia
                 // ниже — пустой список, лоток выберет принтер
             }
         }
+        if (OperatingSystem.IsMacOS())
+        {
+            var real = CupsChoices(printer, "InputSlot");
+            if (real.Count > 0) return real.Select(n => new MediaOption(n, 0)).ToList();
+        }
         return new List<MediaOption>();
+    }
+
+    // ---------------------------------------------------------------- macOS (CUPS)
+
+    /// <summary>
+    /// Реальные варианты PPD-опции конкретного принтера — то же, что видит
+    /// нативная системная панель печати (её показывают Cocoa-приложения вроде
+    /// Clip Studio через NSPrintPanel; у нас такого доступа нет, но сами
+    /// значения можно прочитать у CUPS тем же способом, каким их получает она).
+    /// Формат строки `lpoptions -l`: "Keyword/UI Text: choice1 *default choice3"
+    /// — раскладка звёздочки у выбора по умолчанию нам не важна, берём имена.
+    /// </summary>
+    private static List<string> CupsChoices(string printer, string keyword)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("lpoptions")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            psi.ArgumentList.Add("-p"); psi.ArgumentList.Add(printer);
+            psi.ArgumentList.Add("-l");
+            using var proc = Process.Start(psi);
+            if (proc == null) return new List<string>();
+            string output = proc.StandardOutput.ReadToEnd();
+            proc.WaitForExit(10000);
+
+            foreach (var line in output.Split('\n'))
+            {
+                int slash = line.IndexOf('/');
+                int colon = line.IndexOf(':');
+                if (slash < 0 || colon < slash) continue;
+                string key = line[..slash].Trim();
+                if (!string.Equals(key, keyword, StringComparison.OrdinalIgnoreCase)) continue;
+
+                return line[(colon + 1)..].Trim()
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(tok => tok.TrimStart('*'))
+                    .Where(tok => tok.Length > 0)
+                    .ToList();
+            }
+        }
+        catch
+        {
+            // CUPS недоступен или принтер не отвечает — вызывающий код сам
+            // подставит типовой список
+        }
+        return new List<string>();
     }
 
     // ---------------------------------------------------------------- Windows

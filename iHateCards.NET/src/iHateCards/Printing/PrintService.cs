@@ -1,4 +1,5 @@
 using iHateCards.Core;
+using iHateCards.Diagnostics;
 using iHateCards.Imaging;
 using iHateCards.Pdf;
 using SkiaSharp;
@@ -75,6 +76,13 @@ public static class PrintService
         if (string.IsNullOrEmpty(name)) name = ListPrinters().Default;
         if (string.IsNullOrEmpty(name))
             return new PrintResult(false, "", "", "Принтер не найден");
+
+        DevLog.Log("Print",
+            $"старт: принтер='{name}', postscript={o.PostScript}, ip='{o.Ip}', dpi={o.Dpi}, "
+            + $"copies={o.Copies}, scaleMode={o.ScaleMode}, scale={o.Scale}, fit={o.Fit}, "
+            + $"bw={o.Bw}, toner={o.Toner}, duplex={o.Duplex}, tumble={o.Tumble}, "
+            + $"mediaType='{o.MediaType}', mediaWeight={o.MediaWeight}, mediaPosition={o.MediaPosition}, "
+            + $"manualFeed={o.ManualFeed}, лист={s.Paper.Width}x{s.Paper.Height}мм, страниц={s.TotalPages}");
 
         try
         {
@@ -174,10 +182,12 @@ public static class PrintService
                     foreach (var p in pages) p.Bmp.Dispose();
                 }
             }
+            DevLog.Log("Print", $"успех: принтер='{name}', путь='{mode}'");
             return new PrintResult(true, name, mode);
         }
         catch (Exception e)
         {
+            DevLog.LogException("Print", $"ошибка печати: принтер='{name}'", e);
             return new PrintResult(false, name, "", e.Message);
         }
     }

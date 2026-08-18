@@ -36,19 +36,34 @@ public static class UpdateChecker
     /// версия пропущена пользователем, нет пакета под эту ОС или сеть недоступна.</summary>
     public static async Task<UpdateInfo?> CheckAsync(bool ignoreSkipped = false, CancellationToken ct = default)
     {
+        Diagnostics.DevLog.Log("Update", $"проверка: url='{ManifestUrl}', текущая версия={AppVersion.Current}, rid={AppVersion.Rid}");
         try
         {
             string json = await Http.GetStringAsync(ManifestUrl, ct);
             var info = Parse(json, AppVersion.Rid);
-            if (info == null) return null;
-            if (!AppVersion.IsNewer(info.Version, AppVersion.Current)) return null;
-            if (!ignoreSkipped && IsSkipped(info.Version)) return null;
+            if (info == null)
+            {
+                Diagnostics.DevLog.Log("Update", "манифест разобран, но пакета под эту платформу нет");
+                return null;
+            }
+            if (!AppVersion.IsNewer(info.Version, AppVersion.Current))
+            {
+                Diagnostics.DevLog.Log("Update", $"последняя версия в манифесте {info.Version} не новее текущей");
+                return null;
+            }
+            if (!ignoreSkipped && IsSkipped(info.Version))
+            {
+                Diagnostics.DevLog.Log("Update", $"версия {info.Version} пропущена пользователем ранее");
+                return null;
+            }
             RememberCheck();
+            Diagnostics.DevLog.Log("Update", $"найдено обновление: {info.Version}, пакет={info.Package.Url}");
             return info;
         }
-        catch
+        catch (Exception ex)
         {
             // Нет сети / недоступен манифест — тихо продолжаем работу
+            Diagnostics.DevLog.LogException("Update", "проверка обновления не удалась", ex);
             return null;
         }
     }
