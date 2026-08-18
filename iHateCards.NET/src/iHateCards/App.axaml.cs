@@ -15,6 +15,9 @@ public partial class App : Application
     /// <summary>Изображения для автоимпорта в служебном режиме скриншота.</summary>
     public static List<string> UiShotImports = new();
 
+    /// <summary>Служебный режим: показать на скриншоте свой размер бумаги.</summary>
+    public static bool UiShotCustomPaper;
+
     /// <summary>Служебный режим: снять скриншот уведомления об обновлении (--toastshot).</summary>
     public static string? ToastShotPath;
 
@@ -115,6 +118,8 @@ public partial class App : Application
                 {
                     if (UiShotImports.Count > 0)
                         win.ImportFiles(UiShotImports);
+                    if (UiShotCustomPaper)
+                        win.SelectCustomPaper(700, 1000);
                     await Task.Delay(2500); // дождаться импорта и первого рендера
                     var size = new Avalonia.PixelSize((int)win.Bounds.Width, (int)win.Bounds.Height);
                     using var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(size, new Avalonia.Vector(96, 96));

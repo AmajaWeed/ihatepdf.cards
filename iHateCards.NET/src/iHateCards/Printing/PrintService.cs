@@ -73,7 +73,7 @@ public static class PrintService
             string mode;
             if (o.PostScript)
             {
-                var pages = RenderAllPages(s, LayoutConfig.ExportDpi);
+                var pages = RenderAllPages(s, LayoutConfig.ExportDpiFor(s.Paper));
                 try
                 {
                     var psPages = new List<PsPage>();
@@ -123,7 +123,7 @@ public static class PrintService
             {
                 // Не-PostScript принтеры (EPSON и т.п.): собираем PDF проекта и
                 // печатаем файл через Ghostscript / системный обработчик PDF.
-                var pages = RenderAllPages(s, LayoutConfig.ExportDpi);
+                var pages = RenderAllPages(s, LayoutConfig.ExportDpiFor(s.Paper));
                 try
                 {
                     bool fit = o.Fit;

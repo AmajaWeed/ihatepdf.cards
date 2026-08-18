@@ -55,12 +55,29 @@ public static class AppVersion
 
     public static bool IsNewer(string candidate, string current) => Compare(candidate, current) > 0;
 
+    /// <summary>
+    /// Разбирает версию вида «1.0.0», «1.0.1» или «1.0.0b».
+    /// Буква в конце — четвёртая (самая младшая) часть номера: 1.0.0b новее
+    /// 1.0.0, но старее 1.0.1. Это позволяет выпускать промежуточные сборки,
+    /// не занимая следующий номер.
+    /// </summary>
     private static int[] Parse(string v)
     {
         var parts = (v ?? "").Split('-')[0].Split('.');
         var res = new int[4];
-        for (int i = 0; i < 4; i++)
-            res[i] = i < parts.Length && int.TryParse(parts[i], out int n) ? n : 0;
+        for (int i = 0; i < 4 && i < parts.Length; i++)
+        {
+            string part = parts[i];
+            // хвостовые буквы: a → 1, b → 2, …
+            int letters = 0;
+            while (part.Length > 0 && char.IsLetter(part[^1]))
+            {
+                letters = char.ToLowerInvariant(part[^1]) - 'a' + 1;
+                part = part[..^1];
+            }
+            if (int.TryParse(part, out int n)) res[i] = n;
+            if (letters > 0 && i < 3) res[3] = letters;
+        }
         return res;
     }
 }

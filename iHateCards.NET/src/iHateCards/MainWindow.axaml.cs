@@ -19,8 +19,6 @@ namespace iHateCards;
 
 public partial class MainWindow : Window
 {
-    private const double PreviewDpi = 150;
-
     private AppState _s = new();
     private bool _softproof;
     private bool _updating;          // защита от рекурсии при синхронизации инпутов
@@ -46,7 +44,8 @@ public partial class MainWindow : Window
 
     private void InitControls()
     {
-        PaperSizeCombo.ItemsSource = PaperSizes.All.Select(p => p.Label).ToList();
+        PaperSizeCombo.ItemsSource = PaperSizes.All.Select(p => p.Label)
+            .Append("Свой размер (широкий формат)…").ToList();
         PaperSizeCombo.SelectedIndex = 2; // A4
         PhotoLayoutCombo.ItemsSource = new[] { "Ручная (карты)", "2 фото на листе", "4 фото на листе" };
         PhotoLayoutCombo.SelectedIndex = 0;
@@ -58,7 +57,11 @@ public partial class MainWindow : Window
         PaperSizeCombo.SelectionChanged += (_, _) =>
         {
             if (_updating) return;
-            _s.PaperSizeKey = PaperSizes.All[Math.Max(0, PaperSizeCombo.SelectedIndex)].Key;
+            int idx = Math.Max(0, PaperSizeCombo.SelectedIndex);
+            _s.PaperSizeKey = idx >= PaperSizes.All.Length
+                ? PaperSizes.CustomKey
+                : PaperSizes.All[idx].Key;
+            CustomPaperSection.IsVisible = _s.PaperSizeKey == PaperSizes.CustomKey;
             bool isSmall = _s.PaperSizeKey is "a5" or "a6";
             PhotoLayoutSection.IsVisible = isSmall;
             if (!isSmall && _s.PhotoLayout != 0)
@@ -72,6 +75,17 @@ public partial class MainWindow : Window
             MarkDirty();
             Recalc();
         };
+
+        void CustomPaperChanged()
+        {
+            if (_updating) return;
+            _s.CustomPaperWidth = (double)(PaperWidthInput.Value ?? 320);
+            _s.CustomPaperHeight = (double)(PaperHeightInput.Value ?? 450);
+            MarkDirty();
+            Recalc();
+        }
+        PaperWidthInput.ValueChanged += (_, _) => CustomPaperChanged();
+        PaperHeightInput.ValueChanged += (_, _) => CustomPaperChanged();
 
         PhotoLayoutCombo.SelectionChanged += (_, _) =>
         {
@@ -453,6 +467,15 @@ public partial class MainWindow : Window
         AddFiles(files.Select(f => f.TryGetLocalPath()).Where(p => p != null).Cast<string>().ToList());
     }
 
+    /// <summary>Выбирает свой размер листа (широкий формат) — используется
+    /// служебным режимом скриншота и как программная точка входа.</summary>
+    internal void SelectCustomPaper(double widthMm, double heightMm)
+    {
+        PaperWidthInput.Value = (decimal)widthMm;
+        PaperHeightInput.Value = (decimal)heightMm;
+        PaperSizeCombo.SelectedIndex = PaperSizes.All.Length;
+    }
+
     /// <summary>Импорт списка файлов (используется также служебным режимом --uishot).</summary>
     internal void ImportFiles(List<string> paths) => AddFiles(paths);
 
@@ -614,7 +637,7 @@ public partial class MainWindow : Window
 
     private void RenderPreview()
     {
-        var bmp = PageRenderer.Render(_s, _s.CurrentPage, EffectiveSide(), PreviewDpi,
+        var bmp = PageRenderer.Render(_s, _s.CurrentPage, EffectiveSide(), LayoutConfig.PreviewDpiFor(_s.Paper),
             new PageRenderer.Options(Preview: true, Softproof: _softproof));
         var old = _previewBitmap;
         _previewBitmap = ToAvaloniaBitmap(bmp);
@@ -637,7 +660,17 @@ public partial class MainWindow : Window
         StatCardsPerPage.Text = _s.CardsPerPage.ToString();
         StatTotalPages.Text = (_s.DuplexMode ? _s.TotalPages * 2 : _s.TotalPages).ToString();
         StatTotalCards.Text = total.ToString();
-        StatFormat.Text = _s.PaperSizeKey.ToUpperInvariant();
+        StatFormat.Text = _s.PaperSizeKey == PaperSizes.CustomKey
+            ? $"{_s.Paper.Width:0.#}×{_s.Paper.Height:0.#}"
+            : _s.PaperSizeKey.ToUpperInvariant();
+        if (CustomPaperSection.IsVisible)
+        {
+            int dpi = LayoutConfig.ExportDpiFor(_s.Paper);
+            CustomPaperInfo.Text = dpi >= LayoutConfig.ExportDpi
+                ? $"Лист {_s.Paper.Width:0.#} × {_s.Paper.Height:0.#} мм, экспорт 300 dpi"
+                : $"Лист {_s.Paper.Width:0.#} × {_s.Paper.Height:0.#} мм — большой формат, "
+                  + $"экспорт автоматически в {dpi} dpi (иначе растр не поместится в памяти)";
+        }
         PageIndicator.Text = $"Лист {_s.CurrentPage + 1} из {_s.TotalPages}";
         ExportBtn.IsEnabled = total > 0;
         PrintBtn.IsEnabled = total > 0;
@@ -939,7 +972,7 @@ public partial class MainWindow : Window
     /// <summary>Рендер всех страниц (300 dpi) → CMYK SWOP → PDF/X-1a.</summary>
     private byte[] BuildCmykPdfBytes()
     {
-        var pages = PrintService.RenderAllPages(_s, LayoutConfig.ExportDpi);
+        var pages = PrintService.RenderAllPages(_s, LayoutConfig.ExportDpiFor(_s.Paper));
         try
         {
             var cmykPages = pages
@@ -1185,7 +1218,12 @@ public partial class MainWindow : Window
     private void SyncAllControlsFromState()
     {
         _updating = true;
-        PaperSizeCombo.SelectedIndex = Array.FindIndex(PaperSizes.All, p => p.Key == _s.PaperSizeKey);
+        PaperSizeCombo.SelectedIndex = _s.PaperSizeKey == PaperSizes.CustomKey
+            ? PaperSizes.All.Length
+            : Array.FindIndex(PaperSizes.All, p => p.Key == _s.PaperSizeKey);
+        CustomPaperSection.IsVisible = _s.PaperSizeKey == PaperSizes.CustomKey;
+        PaperWidthInput.Value = (decimal)_s.CustomPaperWidth;
+        PaperHeightInput.Value = (decimal)_s.CustomPaperHeight;
         PhotoLayoutCombo.SelectedIndex = _s.PhotoLayout switch { 2 => 1, 4 => 2, _ => 0 };
         PhotoLayoutSection.IsVisible = _s.PaperSizeKey is "a5" or "a6";
         CardSizeSection.IsVisible = _s.PhotoLayout == 0;

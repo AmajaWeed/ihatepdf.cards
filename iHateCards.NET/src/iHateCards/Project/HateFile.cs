@@ -71,6 +71,8 @@ public static class HateFile
             var layout = new JsonObject
             {
                 ["paperSize"] = s.PaperSizeKey,
+                ["customPaperWidth"] = s.CustomPaperWidth,
+                ["customPaperHeight"] = s.CustomPaperHeight,
                 ["cardWidth"] = s.CardWidth,
                 ["cardHeight"] = s.CardHeight,
                 ["bleed"] = s.Bleed,
@@ -132,6 +134,8 @@ public static class HateFile
         var s = new AppState
         {
             PaperSizeKey = layout["paperSize"]?.GetValue<string>() ?? "a4",
+            CustomPaperWidth = D(layout["customPaperWidth"], 320),
+            CustomPaperHeight = D(layout["customPaperHeight"], 450),
             CardWidth = D(layout["cardWidth"], 65),
             CardHeight = D(layout["cardHeight"], 90),
             Bleed = D(layout["bleed"], 0),

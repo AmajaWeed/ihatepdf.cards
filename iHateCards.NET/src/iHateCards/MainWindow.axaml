@@ -56,6 +56,22 @@
           <TextBlock Classes="sectionTitle" Text="ФОРМАТ БУМАГИ"/>
           <ComboBox Name="PaperSizeCombo"/>
 
+          <StackPanel Name="CustomPaperSection" IsVisible="False" Margin="0,6,0,0">
+            <Grid ColumnDefinitions="*,*">
+              <StackPanel Margin="0,0,4,0">
+                <TextBlock Text="Ширина листа, мм" Classes="muted"/>
+                <NumericUpDown Name="PaperWidthInput" Minimum="50" Maximum="5000" Increment="10"
+                               Value="320" FormatString="0.#" ShowButtonSpinner="False"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="Высота листа, мм" Classes="muted"/>
+                <NumericUpDown Name="PaperHeightInput" Minimum="50" Maximum="5000" Increment="10"
+                               Value="450" FormatString="0.#" ShowButtonSpinner="False"/>
+              </StackPanel>
+            </Grid>
+            <TextBlock Name="CustomPaperInfo" Classes="muted" TextWrapping="Wrap" Margin="0,4,0,0"/>
+          </StackPanel>
+
           <StackPanel Name="PhotoLayoutSection" IsVisible="False">
             <TextBlock Classes="sectionTitle" Text="РАСКЛАДКА ФОТО НА ЛИСТЕ"/>
             <ComboBox Name="PhotoLayoutCombo"/>

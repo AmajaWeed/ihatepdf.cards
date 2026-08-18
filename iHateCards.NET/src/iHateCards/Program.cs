@@ -33,6 +33,7 @@ sealed class Program
         {
             App.UiShotPath = args[1];
             App.UiShotImports = args.Skip(2).Where(File.Exists).ToList();
+            App.UiShotCustomPaper = args.Contains("custom");
         }
 
         string? project = args.FirstOrDefault(a =>

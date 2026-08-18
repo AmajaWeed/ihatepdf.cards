@@ -128,6 +128,7 @@ public static class SelfTest
     public static int Run(string[] args)
     {
         TestLayoutMath();
+        TestCustomPaper();
         TestCropMarks();
         TestPolaroid();
         TestPdfStructure();
@@ -210,6 +211,46 @@ public static class SelfTest
         LayoutEngine.CalculateLayout(s);
         Check(s.TotalPages == 2, "10 карт → 2 листа", s.TotalPages.ToString());
         Check(s.ExpandedImages().Count == 10, "ExpandedImages по количеству");
+    }
+
+    private static void TestCustomPaper()
+    {
+        Console.WriteLine("Свой размер бумаги:");
+        // Широкоформатный лист 700×1000 мм, карта 65×90
+        var s = new AppState { PaperSizeKey = PaperSizes.CustomKey, CustomPaperWidth = 700, CustomPaperHeight = 1000 };
+        LayoutEngine.CalculateLayout(s);
+        Check(Math.Abs(s.Paper.Width - 700) < 1e-9 && Math.Abs(s.Paper.Height - 1000) < 1e-9,
+            "размер листа берётся из своих значений", $"{s.Paper.Width}×{s.Paper.Height}");
+        // work = 691 × 991 → 10 колонок × 11 рядов
+        Check(s.CardsPerRow == 10 && s.CardsPerCol == 11, "700×1000 → 10×11 карт",
+            $"{s.CardsPerRow}×{s.CardsPerCol}");
+
+        // Границы: значения вне диапазона зажимаются
+        var big = new AppState { PaperSizeKey = PaperSizes.CustomKey, CustomPaperWidth = 99999, CustomPaperHeight = 1 };
+        Check(Math.Abs(big.Paper.Width - PaperSizes.MaxCustom) < 1e-9
+            && Math.Abs(big.Paper.Height - PaperSizes.MinCustom) < 1e-9,
+            "размеры зажимаются в допустимые пределы", $"{big.Paper.Width}×{big.Paper.Height}");
+
+        // Разрешение: обычный лист печатается в 300 dpi, огромный — мельче,
+        // чтобы растр не разросся до гигабайтов
+        Check(LayoutConfig.ExportDpiFor(PaperSizes.A4) == 300, "A4 — 300 dpi");
+        int wideDpi = LayoutConfig.ExportDpiFor(s.Paper);
+        Check(wideDpi is > 30 and < 300, $"700×1000 мм — {wideDpi} dpi (понижено)");
+        long px = (long)(s.Paper.Width / 25.4 * wideDpi) * (long)(s.Paper.Height / 25.4 * wideDpi);
+        Check(px <= LayoutConfig.MaxPagePixels, "растр укладывается в предел памяти",
+            $"{px / 1_000_000} Мпикс");
+        Check(LayoutConfig.PreviewDpiFor(s.Paper) < LayoutConfig.PreviewDpiFor(PaperSizes.A4),
+            "превью большого листа мельче");
+
+        // Реальный рендер большого листа не падает
+        var card = MakeEntry(60, 90, SKColors.SlateBlue);
+        card.Quantity = 4;
+        s.Images.Add(card);
+        LayoutEngine.CalculateLayout(s);
+        using var bmp = PageRenderer.Render(s, 0, "front", LayoutConfig.PreviewDpiFor(s.Paper),
+            new PageRenderer.Options(true, false));
+        Check(bmp.Width > 0 && bmp.Height > 0, $"страница отрисована: {bmp.Width}×{bmp.Height} px");
+        card.Dispose();
     }
 
     private static void TestCropMarks()
@@ -383,6 +424,9 @@ public static class SelfTest
         Check(AppVersion.Compare("2.0.0", "10.0.0") < 0, "числовое сравнение, не строковое");
         Check(AppVersion.IsNewer("2.1.0", "2.0.0") && !AppVersion.IsNewer("2.0.0", "2.1.0"),
             "IsNewer в обе стороны");
+        Check(AppVersion.Compare("1.0.0b", "1.0.0") > 0, "1.0.0b новее 1.0.0");
+        Check(AppVersion.Compare("1.0.0b", "1.0.1") < 0, "1.0.0b старее 1.0.1");
+        Check(AppVersion.Compare("1.0.0c", "1.0.0b") > 0, "буквы сравниваются по порядку");
         Check(AppVersion.Rid.Contains('-'), "RID платформы: " + AppVersion.Rid);
         Check(AppVersion.Current != "0.0.0", "версия сборки читается: " + AppVersion.Current);
 

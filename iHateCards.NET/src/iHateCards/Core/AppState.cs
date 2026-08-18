@@ -16,6 +16,10 @@ public sealed class CalibSide
 public sealed class AppState
 {
     public string PaperSizeKey = "a4";
+    /// <summary>Свой размер листа (мм) — для широкоформатной печати.
+    /// Используется, когда PaperSizeKey == PaperSizes.CustomKey.</summary>
+    public double CustomPaperWidth = 320;
+    public double CustomPaperHeight = 450;
     public double CardWidth = 65;
     public double CardHeight = 90;
     public double Bleed = 0;
@@ -60,7 +64,9 @@ public sealed class AppState
     public int CardsPerPage;
     public int TotalPages = 1;
 
-    public PaperSize Paper => PaperSizes.ByKey(PaperSizeKey);
+    public PaperSize Paper => PaperSizeKey == PaperSizes.CustomKey
+        ? PaperSizes.Custom(CustomPaperWidth, CustomPaperHeight)
+        : PaperSizes.ByKey(PaperSizeKey);
 
     /// <summary>Размер реза самой карты (логический, для показа в интерфейсе).</summary>
     public double CutWidth => CardWidth - Bleed * 2;
