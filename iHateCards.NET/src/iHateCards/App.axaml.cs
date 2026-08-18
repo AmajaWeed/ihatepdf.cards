@@ -21,6 +21,9 @@ public partial class App : Application
     /// <summary>Служебный режим: снять скриншот диалога печати (--dialogshot).</summary>
     public static string? DialogShotPath;
 
+    /// <summary>Какой именно диалог снимать: print (по умолчанию) или duplex.</summary>
+    public static string DialogShotKind = "print";
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -35,7 +38,12 @@ public partial class App : Application
         {
             var (printers, def) = Printing.PrintService.ListPrinters();
             if (printers.Count == 0) { printers = new List<string> { "Xerox AltaLink C8155" }; def = printers[0]; }
-            var dlg = new Dialogs.PrintDialog(printers, def, duplex: true);
+            // Демонстрационная раскладка для скриншота диалога
+            var demoState = new Core.AppState { DuplexMode = true };
+            Core.LayoutEngine.CalculateLayout(demoState);
+            Avalonia.Controls.Window dlg = DialogShotKind == "duplex"
+                ? new Dialogs.DuplexSettingsDialog(PrinterProfile.Load(def))
+                : new Dialogs.PrintDialog(printers, def, demoState);
             dialogLifetime.MainWindow = dlg;
             dlg.Opened += async (_, _) =>
             {

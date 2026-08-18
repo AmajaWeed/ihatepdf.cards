@@ -23,7 +23,10 @@ sealed class Program
             return;
         }
         if (args.Length > 1 && args[0] == "--dialogshot")
+        {
             App.DialogShotPath = args[1];
+            if (args.Length > 2) App.DialogShotKind = args[2];
+        }
         if (args.Length > 1 && args[0] == "--toastshot")
             App.ToastShotPath = args[1];
         if (args.Length > 1 && args[0] == "--uishot")

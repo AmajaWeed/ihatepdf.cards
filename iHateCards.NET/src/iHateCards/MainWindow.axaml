@@ -235,7 +235,7 @@
                   ToolTip.Tip="Экспорт в CMYK US Web Coated (SWOP), PDF/X-1a"/>
           <Button Name="PrintBtn" Classes="secondary" Content="Печать (CMYK)" IsEnabled="False"
                   ToolTip.Tip="Прямая печать в CMYK (PostScript) на выбранный принтер, без RGB"/>
-          <Grid ColumnDefinitions="*,*">
+          <Grid Name="FileButtonsRow" ColumnDefinitions="*,*">
             <Button Name="SaveProjectBtn" Classes="secondary" Content="Сохранить" Margin="0,0,4,0"
                     ToolTip.Tip="Сохранить проект .hate (Ctrl+S)"/>
             <Button Name="OpenProjectBtn" Grid.Column="1" Classes="secondary" Content="Открыть" Margin="4,0,0,0"

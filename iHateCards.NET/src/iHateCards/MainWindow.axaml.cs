@@ -36,6 +36,7 @@ public partial class MainWindow : Window
         Wire();
         Recalc();
         UpdateTitle();
+        BuildMacMenu();
         Opened += (_, _) => _ = CheckForUpdatesAsync(silent: true);
         AddHandler(DragDrop.DropEvent, OnWindowDrop);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
@@ -967,7 +968,7 @@ public partial class MainWindow : Window
             await Msg.Show(this, "Печать", "Принтеры не найдены");
             return;
         }
-        var dlg = new PrintDialog(printers, defaultPrinter, _s.DuplexMode && _s.HasAnyBack());
+        var dlg = new PrintDialog(printers, defaultPrinter, _s);
         await dlg.ShowDialog(this);
         if (dlg.Result is not { } opts) return;
 
@@ -1231,6 +1232,48 @@ public partial class MainWindow : Window
     {
         string name = _projectPath != null ? Path.GetFileName(_projectPath) : "новый проект";
         Title = $"iHateCards — {name}{(_dirty ? " *" : "")}";
+    }
+
+    // ---------------------------------------------------------------- меню macOS
+
+    /// <summary>На macOS команды живут в системной строке меню (как принято в
+    /// системе), а одноимённые кнопки из правой панели убираются, чтобы не
+    /// дублировать одно и то же действие в двух местах.</summary>
+    private void BuildMacMenu()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        NativeMenuItem Item(string header, string? gesture, Func<Task> action)
+        {
+            var item = new NativeMenuItem(header);
+            if (gesture != null) item.Gesture = KeyGesture.Parse(gesture);
+            item.Click += (_, _) => _ = action();
+            return item;
+        }
+
+        var file = new NativeMenuItem("Файл") { Menu = new NativeMenu() };
+        file.Menu.Add(Item("Открыть…", "Cmd+O", () => OpenProjectViaDialog()));
+        file.Menu.Add(Item("Сохранить", "Cmd+S", () => SaveProject(saveAs: false)));
+        file.Menu.Add(Item("Сохранить как…", "Shift+Cmd+S", () => SaveProject(saveAs: true)));
+        file.Menu.Add(new NativeMenuItemSeparator());
+        file.Menu.Add(Item("Экспорт PDF (CMYK)…", "Cmd+E", () => ExportCmyk()));
+        file.Menu.Add(Item("Печать…", "Cmd+P", () => PrintFlow()));
+
+        var app = new NativeMenuItem("iHateCards") { Menu = new NativeMenu() };
+        app.Menu.Add(Item("Проверить обновления…", null, () => CheckForUpdatesAsync(silent: false)));
+
+        var menu = new NativeMenu();
+        menu.Add(file);
+        menu.Add(app);
+        NativeMenu.SetMenu(this, menu);
+
+        // Те же действия в правой панели больше не нужны
+        ExportBtn.IsVisible = false;
+        PrintBtn.IsVisible = false;
+        SaveProjectBtn.IsVisible = false;
+        OpenProjectBtn.IsVisible = false;
+        UpdateBtn.IsVisible = false;
+        FileButtonsRow.IsVisible = false;
     }
 
     // ---------------------------------------------------------------- обновления
