@@ -501,12 +501,13 @@ public sealed class PrintDialog : Window
         return c;
     }
 
-    private static Control Row(string label, Control right) => new StackPanel
+    private static Control Row(string label, Control? right)
     {
-        Orientation = Orientation.Horizontal,
-        Spacing = 8,
-        Children = { new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center }, right }
-    };
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        sp.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+        if (right != null) sp.Children.Add(right);
+        return sp;
+    }
 
     private static TextBlock Hint(string text) => new()
     {
