@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>iHateCards</AssemblyName>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <RootNamespace>iHateCards</RootNamespace>
     <ApplicationIcon Condition="Exists('Assets/app.ico')">Assets/app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>ru;en</SatelliteResourceLanguages>
@@ -26,6 +26,15 @@
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.16.0" />
     <PackageReference Include="PDFtoImage" Version="5.2.1" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Дата сборки — для «О программе» (macOS) и подписи в углу окна (Windows):
+         наглядное подтверждение, что после обновления запущена именно новая сборка -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BuildDate</_Parameter1>
+      <_Parameter2>$([System.DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'"))</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>

@@ -273,5 +273,10 @@
         <TextBlock Name="LoadingText" Text="Экспорт..." HorizontalAlignment="Center"/>
       </StackPanel>
     </Border>
+
+    <!-- Версия/дата сборки: только Windows (на macOS — «О программе» в меню) -->
+    <TextBlock Name="VersionLabel" Grid.Column="2" Text="" FontSize="10" Opacity="0.5"
+               Foreground="#9a9ea8" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+               Margin="0,0,10,6" IsHitTestVisible="False"/>
   </Grid>
 </Window>

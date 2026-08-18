@@ -50,12 +50,59 @@ public static class PostScriptWriter
         .Replace("(", "\\(")
         .Replace(")", "\\)");
 
+    /// <summary>
+    /// Обёртка PJL (Printer Job Language) вокруг PostScript-задания.
+    ///
+    /// На сетевых МФУ (Xerox AltaLink и подобных) `setpagedevice` внутри самого
+    /// PostScript на практике не всегда срабатывает для RAW-заданий (спулер,
+    /// порт 9100): контроллер принтера согласовывает лоток и тип носителя ДО
+    /// того, как передаст байты интерпретатору PostScript, и ждёт эту
+    /// информацию в виде команд PJL перед языковым переключателем. Без такой
+    /// обёртки запрошенный тип бумаги молча игнорируется, и печать уходит на
+    /// бумагу, физически заправленную в лоток по умолчанию — это и есть баг,
+    /// который сообщил пользователь на сборке 1.0.2 (там был только setpagedevice).
+    ///
+    /// Задание оборачивается UEL (Universal Exit Language, ESC%-12345X) — эту
+    /// последовательность понимают практически все современные сетевые
+    /// принтеры вне зависимости от того, используют они сами PJL, поэтому
+    /// обёртка безопасна даже для принтеров без PJL.
+    /// </summary>
+    internal static byte[] PjlPrefix(PsOptions opts)
+    {
+        bool hasMedia = !string.IsNullOrWhiteSpace(opts.MediaType) || opts.MediaWeight > 0 || opts.ManualFeed;
+        if (!hasMedia) return Array.Empty<byte>();
+
+        const string Esc = "\u001B";
+        var sb = new StringBuilder();
+        sb.Append(Esc).Append("%-12345X@PJL JOB NAME=\"iHateCards\"\n");
+        if (!string.IsNullOrWhiteSpace(opts.MediaType))
+            sb.Append("@PJL SET MEDIATYPE=\"").Append(PjlEscape(opts.MediaType!.Trim())).Append("\"\n");
+        if (opts.MediaWeight > 0)
+            sb.Append("@PJL SET PAPERWEIGHT=").Append(opts.MediaWeight).Append('\n');
+        if (opts.ManualFeed)
+            sb.Append("@PJL SET INPUTTRAY=MANUALFEED\n");
+        sb.Append("@PJL ENTER LANGUAGE=POSTSCRIPT\n");
+        return Encoding.Latin1.GetBytes(sb.ToString());
+    }
+
+    internal static byte[] PjlSuffix(PsOptions opts)
+    {
+        bool hasMedia = !string.IsNullOrWhiteSpace(opts.MediaType) || opts.MediaWeight > 0 || opts.ManualFeed;
+        if (!hasMedia) return Array.Empty<byte>();
+        const string Esc = "\u001B";
+        return Encoding.Latin1.GetBytes(Esc + "%-12345X@PJL EOJ\n" + Esc + "%-12345X");
+    }
+
+    /// <summary>PJL-значения не переносят кавычки — заменяем на одинарные.</summary>
+    private static string PjlEscape(string s) => s.Replace("\"", "'");
+
     public static byte[] Build(IReadOnlyList<PsPage> pages, PsOptions opts)
     {
         var buf = new MemoryStream();
         void W(string s) => buf.Write(Encoding.Latin1.GetBytes(s));
         void WB(byte[] b) => buf.Write(b, 0, b.Length);
 
+        WB(PjlPrefix(opts));
         W("%!PS-Adobe-3.0\n%%Creator: iHateCards\n%%LanguageLevel: 3\n");
         W($"%%Pages: {pages.Count}\n");
         W("%%EndComments\n");
@@ -116,6 +163,7 @@ public static class PostScriptWriter
             W("\ngrestore\nshowpage\n");
         }
         W("%%EOF\n");
+        WB(PjlSuffix(opts));
         return buf.ToArray();
     }
 }

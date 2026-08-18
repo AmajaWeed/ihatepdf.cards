@@ -36,6 +36,11 @@ public partial class MainWindow : Window
         Recalc();
         UpdateTitle();
         BuildMacMenu();
+        if (!OperatingSystem.IsMacOS())
+        {
+            VersionLabel.Text = $"iHateCards {AppVersion.Current} · сборка {AppVersion.BuildDate}";
+            ToolTip.SetTip(VersionLabel, "О программе: подтверждение версии после обновления");
+        }
         Opened += (_, _) => _ = CheckForUpdatesAsync(silent: true);
         AddHandler(DragDrop.DropEvent, OnWindowDrop);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
@@ -1302,6 +1307,8 @@ public partial class MainWindow : Window
         file.Menu.Add(Item("Печать…", "Cmd+P", () => PrintFlow()));
 
         var app = new NativeMenuItem("iHateCards") { Menu = new NativeMenu() };
+        app.Menu.Add(Item("О программе iHateCards", null, () => new Dialogs.AboutDialog().ShowDialog(this)));
+        app.Menu.Add(new NativeMenuItemSeparator());
         app.Menu.Add(Item("Проверить обновления…", null, () => CheckForUpdatesAsync(silent: false)));
         app.Menu.Add(Item("Диагностика…", null, () => new DebugDialog().ShowDialog(this)));
 

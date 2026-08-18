@@ -349,6 +349,37 @@ public static class SelfTest
             new PsOptions(1, false, false, 1.0, true));
         Check(System.Text.Encoding.Latin1.GetString(psFit).Contains("currentpagedevice /PageSize get"),
             "fit через PageSize принтера");
+
+        // PJL-обёртка: сетевые МФУ (Xerox AltaLink и подобные) читают тип
+        // носителя из PJL до переключения языка на PostScript — одного
+        // setpagedevice для них недостаточно (баг, воспроизведённый на 1.0.2).
+        byte[] pjlPrefix = PostScriptWriter.PjlPrefix(
+            new PsOptions(1, false, false, 1.0, false, MediaType: "stationery-lightweight", MediaWeight: 250));
+        string pjlPrefixText = System.Text.Encoding.Latin1.GetString(pjlPrefix);
+        Check(pjlPrefix.Length > 0 && pjlPrefix[0] == 0x1B, "PJL-префикс начинается с UEL (ESC%-12345X)");
+        Check(pjlPrefixText.Contains("@PJL SET MEDIATYPE=\"stationery-lightweight\""), "тип носителя в PJL");
+        Check(pjlPrefixText.Contains("@PJL SET PAPERWEIGHT=250"), "плотность в PJL");
+        Check(pjlPrefixText.EndsWith("@PJL ENTER LANGUAGE=POSTSCRIPT\n"), "PJL завершается переключением на PostScript");
+
+        byte[] pjlSuffix = PostScriptWriter.PjlSuffix(
+            new PsOptions(1, false, false, 1.0, false, MediaType: "cardstock"));
+        Check(pjlSuffix.Length > 0 && pjlSuffix[0] == 0x1B, "PJL-суффикс тоже начинается с UEL");
+        Check(System.Text.Encoding.Latin1.GetString(pjlSuffix).Contains("@PJL EOJ"), "суффикс завершает задание (EOJ)");
+
+        Check(PostScriptWriter.PjlPrefix(new PsOptions(1, false, false, 1.0, false)).Length == 0,
+            "без носителя PJL-обёртки нет (не мешает обычным принтерам)");
+
+        byte[] psWithMedia = PostScriptWriter.Build(
+            new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
+            new PsOptions(1, false, false, 1.0, false, MediaType: "cardstock", MediaWeight: 250));
+        string full = System.Text.Encoding.Latin1.GetString(psWithMedia);
+        Check(psWithMedia[0] == 0x1B, "готовое задание начинается с UEL, а не сразу с %!PS");
+        Check(full.Contains("%!PS-Adobe-3.0"), "PostScript всё ещё внутри, после PJL");
+        Check(full.IndexOf("ENTER LANGUAGE=POSTSCRIPT", StringComparison.Ordinal)
+              < full.IndexOf("%!PS-Adobe-3.0", StringComparison.Ordinal),
+            "PJL идёт раньше начала PostScript");
+        Check(full.Contains("@PJL EOJ") && psWithMedia[^1] == (byte)'X' && psWithMedia[^9] == 0x1B,
+            "задание заканчивается PJL EOJ + UEL");
     }
 
     private static void TestCmykAgainstReference(string[] args)

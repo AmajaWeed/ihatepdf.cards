@@ -21,6 +21,20 @@ public static class AppVersion
         }
     }
 
+    private static string? _buildDate;
+
+    /// <summary>Когда собрана текущая сборка (UTC) — наглядное подтверждение,
+    /// что после обновления запущена именно новая версия, а не старая.</summary>
+    public static string BuildDate
+    {
+        get
+        {
+            if (_buildDate != null) return _buildDate;
+            var attrs = typeof(AppVersion).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>();
+            return _buildDate = attrs.FirstOrDefault(a => a.Key == "BuildDate")?.Value ?? "неизвестно";
+        }
+    }
+
     /// <summary>Идентификатор платформы для выбора пакета обновления.</summary>
     public static string Rid
     {

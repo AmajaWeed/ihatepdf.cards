@@ -48,6 +48,7 @@ public partial class App : Application
             {
                 "duplex" => new Dialogs.DuplexSettingsDialog(PrinterProfile.Load(def)),
                 "debug" => new Dialogs.DebugDialog(),
+                "about" => new Dialogs.AboutDialog(),
                 _ => new Dialogs.PrintDialog(printers, def, demoState)
             };
             dialogLifetime.MainWindow = dlg;
