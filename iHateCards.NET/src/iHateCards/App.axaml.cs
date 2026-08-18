@@ -18,6 +18,9 @@ public partial class App : Application
     /// <summary>Служебный режим: снять скриншот уведомления об обновлении (--toastshot).</summary>
     public static string? ToastShotPath;
 
+    /// <summary>Служебный режим: снять скриншот диалога печати (--dialogshot).</summary>
+    public static string? DialogShotPath;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -27,6 +30,36 @@ public partial class App : Application
     {
         // Шрифт интерфейса: Century Gothic, если он есть в системе, иначе вшитый Jost
         Resources["AppFontFamily"] = Avalonia.Media.FontFamily.Parse(AppFonts.UiFontFamily);
+
+        if (DialogShotPath is { } dialogShot && ApplicationLifetime is IClassicDesktopStyleApplicationLifetime dialogLifetime)
+        {
+            var (printers, def) = Printing.PrintService.ListPrinters();
+            if (printers.Count == 0) { printers = new List<string> { "Xerox AltaLink C8155" }; def = printers[0]; }
+            var dlg = new Dialogs.PrintDialog(printers, def, duplex: true);
+            dialogLifetime.MainWindow = dlg;
+            dlg.Opened += async (_, _) =>
+            {
+                await Task.Delay(1500);
+                var size = new Avalonia.PixelSize((int)dlg.Bounds.Width, (int)dlg.Bounds.Height);
+                using var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(size, new Avalonia.Vector(96, 96));
+                rtb.Render(dlg);
+                rtb.Save(dialogShot);
+
+                // Вторым кадром — низ диалога (редактор профиля дуплекса)
+                if (dlg.Content is Avalonia.Controls.ScrollViewer sv)
+                {
+                    sv.ScrollToEnd();
+                    await Task.Delay(600);
+                    using var rtb2 = new Avalonia.Media.Imaging.RenderTargetBitmap(size, new Avalonia.Vector(96, 96));
+                    rtb2.Render(dlg);
+                    rtb2.Save(System.IO.Path.ChangeExtension(dialogShot, null) + "-duplex.png");
+                }
+                Environment.Exit(0);
+            };
+            dlg.Show();
+            base.OnFrameworkInitializationCompleted();
+            return;
+        }
 
         if (ToastShotPath is { } toastShot && ApplicationLifetime is IClassicDesktopStyleApplicationLifetime toastLifetime)
         {
