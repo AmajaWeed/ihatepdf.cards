@@ -1,0 +1,47 @@
+# Сборка Windows-установщика (Inno Setup, спрашивает папку установки).
+# Исходники .NET-версии живут в ветке dotnet-rewrite — этот файл лежит на main
+# только потому, что GitHub запускает workflow_dispatch лишь с дефолтной ветки;
+# сама сборка чекаутит именно dotnet-rewrite и ничего в main не меняет.
+name: Windows installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия, например 1.0.1"
+        required: true
+        default: "1.0.1"
+      ref:
+        description: "Ветка/коммит с исходниками"
+        required: true
+        default: "dotnet-rewrite"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Публикация приложения
+        working-directory: iHateCards.NET
+        run: |
+          dotnet publish src/iHateCards/iHateCards.csproj -c Release -r win-x64 --self-contained `
+            -o publish/win-x64 -p:Version=${{ inputs.version }} -p:InformationalVersion=${{ inputs.version }}
+          Remove-Item publish/win-x64/*.pdb -ErrorAction SilentlyContinue
+
+      - name: Сборка установщика
+        working-directory: iHateCards.NET
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion=${{ inputs.version }} installer\iHateCards.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iHateCards-setup-${{ inputs.version }}
+          path: iHateCards.NET/publish/*setup.exe
