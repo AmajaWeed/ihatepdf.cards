@@ -247,9 +247,9 @@
         </Grid>
 
         <StackPanel Grid.Row="3" Spacing="8">
-          <Button Name="ExportBtn" Classes="accent" Content="Экспорт PDF (CMYK)" IsEnabled="False"
+          <Button Name="ExportBtn" Classes="accent" Content="Экспорт PDF" IsEnabled="False"
                   ToolTip.Tip="Экспорт в CMYK US Web Coated (SWOP), PDF/X-1a"/>
-          <Button Name="PrintBtn" Classes="secondary" Content="Печать (CMYK)" IsEnabled="False"
+          <Button Name="PrintBtn" Classes="secondary" Content="Печать" IsEnabled="False"
                   ToolTip.Tip="Прямая печать в CMYK (PostScript) на выбранный принтер, без RGB"/>
           <Grid Name="FileButtonsRow" ColumnDefinitions="*,*">
             <Button Name="SaveProjectBtn" Classes="secondary" Content="Сохранить" Margin="0,0,4,0"

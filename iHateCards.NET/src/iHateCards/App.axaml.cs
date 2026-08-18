@@ -47,6 +47,8 @@ public partial class App : Application
             Avalonia.Controls.Window dlg = DialogShotKind switch
             {
                 "duplex" => new Dialogs.DuplexSettingsDialog(PrinterProfile.Load(def)),
+                "paper" => new Dialogs.PaperSettingsDialog(PrinterProfile.Load(def),
+                    Printing.PrinterMedia.MediaTypes(def), Printing.PrinterMedia.Trays(def)),
                 "debug" => new Dialogs.DebugDialog(),
                 "about" => new Dialogs.AboutDialog(),
                 _ => new Dialogs.PrintDialog(printers, def, demoState)

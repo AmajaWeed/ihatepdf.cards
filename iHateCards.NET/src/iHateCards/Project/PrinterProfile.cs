@@ -57,6 +57,12 @@ public sealed class PrintConfig
     /// <summary>Номер лотка (-1 — выбирает принтер).</summary>
     public int MediaPosition { get; set; } = -1;
 
+    /// <summary>Название лотка у драйвера (напр. «Лоток 5») — вторая, более
+    /// надёжная опора для выбора лотка через PJL INPUTTRAY, поскольку
+    /// числовой MediaPosition — это индекс из Windows DeviceCapabilities,
+    /// который не обязан совпадать с нумерацией лотков в PPD принтера.</summary>
+    public string MediaTrayName { get; set; } = "";
+
     /// <summary>Ручная подача (обходной лоток).</summary>
     public bool ManualFeed { get; set; }
 }
@@ -160,6 +166,7 @@ public sealed class PrinterProfile
             ["mediaType"] = Print.MediaType,
             ["mediaWeight"] = Print.MediaWeight,
             ["mediaPosition"] = Print.MediaPosition,
+            ["mediaTrayName"] = Print.MediaTrayName,
             ["manualFeed"] = Print.ManualFeed
         }
     };
@@ -204,6 +211,7 @@ public sealed class PrinterProfile
             MediaType = Str(pr?["mediaType"]) ?? "",
             MediaWeight = (int)D(pr?["mediaWeight"], 0),
             MediaPosition = (int)D(pr?["mediaPosition"], -1),
+            MediaTrayName = Str(pr?["mediaTrayName"]) ?? "",
             ManualFeed = B(pr?["manualFeed"], false)
         };
         return p;

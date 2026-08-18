@@ -952,7 +952,7 @@ public partial class MainWindow : Window
     {
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Экспорт PDF (CMYK)",
+            Title = "Экспорт PDF",
             SuggestedFileName = "cards.pdf",
             FileTypeChoices = new[] { new FilePickerFileType("PDF") { Patterns = new[] { "*.pdf" } } }
         });
@@ -1303,7 +1303,7 @@ public partial class MainWindow : Window
         file.Menu.Add(Item("Сохранить", "Cmd+S", () => SaveProject(saveAs: false)));
         file.Menu.Add(Item("Сохранить как…", "Shift+Cmd+S", () => SaveProject(saveAs: true)));
         file.Menu.Add(new NativeMenuItemSeparator());
-        file.Menu.Add(Item("Экспорт PDF (CMYK)…", "Cmd+E", () => ExportCmyk()));
+        file.Menu.Add(Item("Экспорт PDF…", "Cmd+E", () => ExportCmyk()));
         file.Menu.Add(Item("Печать…", "Cmd+P", () => PrintFlow()));
 
         var app = new NativeMenuItem("iHateCards") { Menu = new NativeMenu() };

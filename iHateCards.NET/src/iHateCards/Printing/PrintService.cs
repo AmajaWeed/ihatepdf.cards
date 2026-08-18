@@ -29,6 +29,11 @@ public sealed class PrintOptions
     public int MediaWeight;
     public int MediaPosition = -1;
     public bool ManualFeed;
+
+    /// <summary>Название лотка у драйвера (напр. «Лоток 5») — используется
+    /// как более надёжная альтернатива числовому MediaPosition при выборе
+    /// лотка через PJL INPUTTRAY.</summary>
+    public string MediaTrayName = "";
 }
 
 public sealed record PrintResult(bool Ok, string Printer, string Mode, string? Error = null);
@@ -82,6 +87,7 @@ public static class PrintService
             + $"copies={o.Copies}, scaleMode={o.ScaleMode}, scale={o.Scale}, fit={o.Fit}, "
             + $"bw={o.Bw}, toner={o.Toner}, duplex={o.Duplex}, tumble={o.Tumble}, "
             + $"mediaType='{o.MediaType}', mediaWeight={o.MediaWeight}, mediaPosition={o.MediaPosition}, "
+            + $"mediaTrayName='{o.MediaTrayName}', "
             + $"manualFeed={o.ManualFeed}, лист={s.Paper.Width}x{s.Paper.Height}мм, страниц={s.TotalPages}");
 
         try
@@ -111,7 +117,8 @@ public static class PrintService
                     byte[] ps = PostScriptWriter.Build(psPages,
                         new PsOptions(o.Copies, o.Duplex, o.Tumble, o.Fit ? 1.0 : o.Scale, o.Fit,
                             MediaType: o.MediaType, MediaWeight: o.MediaWeight,
-                            MediaPosition: o.MediaPosition, ManualFeed: o.ManualFeed));
+                            MediaPosition: o.MediaPosition, ManualFeed: o.ManualFeed,
+                            TrayName: o.MediaTrayName));
 
                     string ip = o.Ip.Trim();
                     if (ip.Length > 0)

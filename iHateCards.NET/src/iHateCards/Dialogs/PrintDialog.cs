@@ -13,23 +13,20 @@ namespace iHateCards.Dialogs;
 
 /// <summary>
 /// Окно печати: слева параметры, справа предпросмотр листа — как в привычных
-/// диалогах печати. Настройки двухсторонней печати вынесены в отдельное окно
-/// (кнопка «Двухсторонняя печать…»), системные параметры драйвера — в «Свойства».
+/// диалогах печати. Настройки двухсторонней печати и бумаги вынесены в
+/// отдельные окна («Двухсторонняя печать…», «Бумага…»), системные параметры
+/// драйвера — в «Свойства».
 /// </summary>
 public sealed class PrintDialog : Window
 {
     private readonly AppState _state;
     private readonly ComboBox _printerCombo;
     private readonly NumericUpDown _copies;
-    private readonly RadioButton _modeFit, _modeReal, _modePercent;
+    private readonly RadioButton _modeReal, _modePercent;
     private readonly NumericUpDown _pct;
-    private readonly CheckBox _bw, _toner, _ps;
-    private readonly ComboBox _dpi;
+    private readonly CheckBox _bw, _ps;
     private readonly TextBox _ip;
     private readonly StackPanel _ipRow;
-    private readonly ComboBox _mediaType, _tray;
-    private readonly NumericUpDown _mediaWeight;
-    private readonly TextBlock _mediaHint;
     private List<MediaOption> _mediaTypes = new();
     private List<MediaOption> _trays = new();
     private readonly bool _duplex;
@@ -68,8 +65,8 @@ public sealed class PrintDialog : Window
         ToolTip.SetTip(propsBtn, OperatingSystem.IsWindows()
             ? "Системный диалог драйвера принтера"
             : "macOS не даёт сторонним приложениям открыть настройки именно этого принтера — "
-              + "только общий список. Тип бумаги для печати из iHateCards настраивается ниже, "
-              + "в разделе «Бумага».");
+              + "только общий список. Тип бумаги для печати из iHateCards настраивается в "
+              + "окне «Бумага…».");
         propsBtn.Click += async (_, _) =>
         {
             try
@@ -81,8 +78,8 @@ public sealed class PrintDialog : Window
                         + "именно этого принтера сторонним приложениям система не позволяет "
                         + "(это ограничение macOS, не программы). Найдите принтер в списке и "
                         + "откройте его вручную, либо настройте тип и плотность бумаги прямо "
-                        + "здесь, в разделе «Бумага» ниже — так они точно применятся к печати "
-                        + "из iHateCards.");
+                        + "здесь, в окне «Бумага…» — так они точно применятся к печати из "
+                        + "iHateCards.");
             }
             catch (Exception ex) { await Msg.Show(this, "Свойства принтера", ex.Message); }
         };
@@ -100,24 +97,26 @@ public sealed class PrintDialog : Window
             _profile = dlg.Profile;
         };
 
+        var paperBtn = Secondary("Бумага…");
+        paperBtn.Click += async (_, _) =>
+        {
+            SaveProfileFromUi();
+            ReloadMediaLists();
+            var dlg = new PaperSettingsDialog(_profile, _mediaTypes, _trays);
+            await dlg.ShowDialog(this);
+        };
+
         // --- копии и цвет ---
         _copies = Num(1, 999, 1, "0", 80);
         _bw = new CheckBox { Content = "Печать в градациях серого (чёрно-белая)" };
-        _toner = new CheckBox { Content = "Экономия чернил/тонера" };
 
         // --- размер ---
-        _modeFit = new RadioButton { Content = "Подогнать", GroupName = "mode" };
         _modeReal = new RadioButton { Content = "Реальный размер", GroupName = "mode" };
         _modePercent = new RadioButton { Content = "Пользовательский масштаб:", GroupName = "mode" };
         _pct = Num(1, 400, 100, "0.##", 90);
         _pct.GotFocus += (_, _) => _modePercent.IsChecked = true;
 
-        // --- качество и PostScript ---
-        _dpi = new ComboBox
-        {
-            ItemsSource = new[] { "Высокое (360 dpi)", "Стандарт (300 dpi)", "Эконом (200 dpi)", "Черновик (150 dpi)" },
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
+        // --- PostScript ---
         _ps = new CheckBox { Content = "Принтер PostScript — печать напрямую в CMYK" };
         _ip = new TextBox { Watermark = "напр. 192.168.1.3", Width = 170 };
         var hosts = OperatingSystem.IsWindows() ? NetPrint.ListTcpHosts() : new List<string>();
@@ -133,11 +132,6 @@ public sealed class PrintDialog : Window
         };
         _ps.IsCheckedChanged += (_, _) => { _ipRow.IsVisible = _ps.IsChecked == true; AutofillIp(); };
 
-        // --- бумага ---
-        _mediaType = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        _tray = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        _mediaWeight = Num(0, 600, 0, "0", 90);
-        _mediaHint = Hint("");
         ReloadMediaLists();
 
         _printerCombo.SelectionChanged += (_, _) =>
@@ -148,7 +142,6 @@ public sealed class PrintDialog : Window
             LoadProfileToUi();
             AutofillIp();
         };
-        _ps.IsCheckedChanged += (_, _) => UpdateMediaHint();
 
         LoadProfileToUi();
         AutofillIp();
@@ -185,22 +178,13 @@ public sealed class PrintDialog : Window
                         Cell(propsBtn, 2)
                     }
                 },
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal, Spacing = 16,
-                    Children = { Row("Копий:", _copies), _bw }
-                },
-                _toner,
+                _bw,
                 Section("Настройка размера и обработка страниц", new StackPanel
                 {
                     Spacing = 6,
                     Children =
                     {
-                        new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("*,*"),
-                            Children = { Cell(_modeFit, 0), Cell(_modeReal, 1) }
-                        },
+                        _modeReal,
                         new StackPanel
                         {
                             Orientation = Orientation.Horizontal, Spacing = 8,
@@ -208,33 +192,17 @@ public sealed class PrintDialog : Window
                         }
                     }
                 }),
-                Section("Качество и цвет", new StackPanel
+                Section("PostScript", new StackPanel
                 {
                     Spacing = 6,
                     Children =
                     {
-                        _dpi,
-                        Hint("Ниже dpi — меньше размер задания (помогает при «ошибке порта» WSD)."),
                         _ps,
                         Hint("Выкл. — печать через драйвер (универсально: EPSON и любой принтер). Вкл. — только для PostScript-принтеров (Xerox); иначе иероглифы."),
                         _ipRow
                     }
                 }),
-                Section("Бумага", new StackPanel
-                {
-                    Spacing = 6,
-                    Children =
-                    {
-                        Row("Тип носителя:", null), _mediaType,
-                        new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal, Spacing = 8,
-                            Children = { Row("Плотность, г/м²:", _mediaWeight) }
-                        },
-                        Row("Лоток:", null), _tray,
-                        _mediaHint
-                    }
-                }),
+                paperBtn,
                 Section("Стороны", new StackPanel
                 {
                     Spacing = 6,
@@ -272,7 +240,8 @@ public sealed class PrintDialog : Window
         };
     }
 
-    /// <summary>Предпросмотр листа — то же изображение, что уйдёт на принтер.</summary>
+    /// <summary>Предпросмотр листа — то же изображение, что уйдёт на принтер. Число копий
+    /// показано прямо под предпросмотром, рядом со счётчиком листов.</summary>
     private Control BuildPreview()
     {
         var paper = _state.Paper;
@@ -319,6 +288,13 @@ public sealed class PrintDialog : Window
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = new SolidColorBrush(Color.Parse("#9a9ea8")),
                     FontSize = 12
+                },
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Spacing = 8,
+                    Children = { Row("Копий:", _copies) }
                 }
             }
         };
@@ -332,21 +308,13 @@ public sealed class PrintDialog : Window
         var p = _profile;
         _copies.Value = p.Print.Copies;
         _pct.Value = (decimal)p.Print.ScalePct;
-        _modeReal.IsChecked = p.Print.ScaleMode == "real";
-        _modeFit.IsChecked = p.Print.ScaleMode == "fit";
+        _modeReal.IsChecked = p.Print.ScaleMode != "percent";
         _modePercent.IsChecked = p.Print.ScaleMode == "percent";
         _bw.IsChecked = p.Print.Bw;
-        _toner.IsChecked = p.Print.Toner;
-        _dpi.SelectedIndex = p.Print.Dpi switch { 360 => 0, 300 => 1, 200 => 2, 150 => 3, _ => 1 };
         _ps.IsChecked = p.Print.PostScript || GuessPostScript(p.Printer);
         _ip.Text = p.Print.Ip;
         _ipRow.IsVisible = _ps.IsChecked == true;
-
-        _mediaType.SelectedIndex = IndexOfMedia(_mediaTypes, p.Print.MediaType);
-        _mediaWeight.Value = p.Print.MediaWeight;
-        _tray.SelectedIndex = IndexOfTray(p.Print.MediaPosition);
         _loading = false;
-        UpdateMediaHint();
     }
 
     private void SaveProfileFromUi()
@@ -356,59 +324,18 @@ public sealed class PrintDialog : Window
         p.Printer = CurrentPrinter();
         p.Print.Copies = Math.Max(1, (int)(_copies.Value ?? 1));
         p.Print.ScalePct = (double)(_pct.Value ?? 100);
-        p.Print.ScaleMode = _modeFit.IsChecked == true ? "fit" : _modePercent.IsChecked == true ? "percent" : "real";
+        p.Print.ScaleMode = _modePercent.IsChecked == true ? "percent" : "real";
         p.Print.Bw = _bw.IsChecked == true;
-        p.Print.Toner = _toner.IsChecked == true;
-        p.Print.Dpi = _dpi.SelectedIndex switch { 0 => 360, 2 => 200, 3 => 150, _ => 300 };
         p.Print.PostScript = _ps.IsChecked == true;
         p.Print.Ip = (_ip.Text ?? "").Trim();
-
-        // Первый пункт списков — «как решит принтер»
-        p.Print.MediaType = _mediaType.SelectedIndex > 0
-            ? _mediaTypes[_mediaType.SelectedIndex - 1].Name
-            : "";
-        p.Print.MediaWeight = (int)(_mediaWeight.Value ?? 0);
-        p.Print.MediaPosition = _tray.SelectedIndex > 0
-            ? _trays[_tray.SelectedIndex - 1].Id
-            : -1;
     }
 
-    /// <summary>Списки типов бумаги и лотков берём у драйвера выбранного принтера.</summary>
+    /// <summary>Списки типов бумаги и лотков берём у драйвера выбранного принтера —
+    /// нужны при открытии окна «Бумага…».</summary>
     private void ReloadMediaLists()
     {
         _mediaTypes = PrinterMedia.MediaTypes(CurrentPrinter());
         _trays = PrinterMedia.Trays(CurrentPrinter());
-        _mediaType.ItemsSource = new[] { "По умолчанию принтера" }
-            .Concat(_mediaTypes.Select(m => m.Name)).ToList();
-        _tray.ItemsSource = new[] { "Выбирает принтер" }
-            .Concat(_trays.Select(t => t.Name)).ToList();
-        _mediaType.SelectedIndex = 0;
-        _tray.SelectedIndex = 0;
-    }
-
-    private int IndexOfMedia(List<MediaOption> list, string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return 0;
-        int i = list.FindIndex(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
-        return i >= 0 ? i + 1 : 0;
-    }
-
-    private int IndexOfTray(int id)
-    {
-        if (id < 0) return 0;
-        int i = _trays.FindIndex(t => t.Id == id);
-        return i >= 0 ? i + 1 : 0;
-    }
-
-    /// <summary>Объясняет, почему тип бумаги задаётся здесь, а не в драйвере.</summary>
-    private void UpdateMediaHint()
-    {
-        _mediaHint.Text = _ps.IsChecked == true
-            ? "Прямая печать CMYK идёт мимо драйвера принтера, поэтому выбранная в его "
-              + "диалоге бумага не применяется — тип носителя нужно задать здесь. "
-              + "В принтере лоток с такой бумагой должен быть настроен."
-            : "Печать идёт через драйвер: можно оставить «по умолчанию принтера» и выбрать "
-              + "бумагу в «Свойствах», либо задать тип здесь.";
     }
 
     private string CurrentPrinter() => _printerCombo.SelectedItem as string ?? "";
@@ -434,8 +361,7 @@ public sealed class PrintDialog : Window
 
     private PrintOptions CollectOptions()
     {
-        string mode = _modeFit.IsChecked == true ? "fit"
-            : _modePercent.IsChecked == true ? "percent" : "real";
+        string mode = _modePercent.IsChecked == true ? "percent" : "real";
         double pct = (double)(_pct.Value ?? 100);
         return new PrintOptions
         {
@@ -443,17 +369,18 @@ public sealed class PrintDialog : Window
             Copies = Math.Max(1, (int)(_copies.Value ?? 1)),
             ScaleMode = mode,
             Scale = mode == "percent" ? pct / 100 : 1.0,
-            Fit = mode == "fit",
+            Fit = false,
             Bw = _bw.IsChecked == true,
-            Toner = _toner.IsChecked == true,
+            Toner = false,
             PostScript = _ps.IsChecked == true,
-            Dpi = _dpi.SelectedIndex switch { 0 => 360, 2 => 200, 3 => 150, _ => 300 },
+            Dpi = 300,
             Ip = (_ip.Text ?? "").Trim(),
             Duplex = _duplex,
             Tumble = _profile.Duplex.FlipEdge == "short",
-            MediaType = _mediaType.SelectedIndex > 0 ? _mediaTypes[_mediaType.SelectedIndex - 1].Name : "",
-            MediaWeight = (int)(_mediaWeight.Value ?? 0),
-            MediaPosition = _tray.SelectedIndex > 0 ? _trays[_tray.SelectedIndex - 1].Id : -1,
+            MediaType = _profile.Print.MediaType,
+            MediaWeight = _profile.Print.MediaWeight,
+            MediaPosition = _profile.Print.MediaPosition,
+            MediaTrayName = _profile.Print.MediaTrayName,
             ManualFeed = _profile.Print.ManualFeed
         };
     }

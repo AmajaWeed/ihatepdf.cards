@@ -150,8 +150,14 @@ public static class PrinterMedia
             if (DeviceCapabilities(printer, null, capability, buf, IntPtr.Zero) <= 0) return result;
             for (int i = 0; i < count; i++)
             {
-                string s = Marshal.PtrToStringUni(buf + i * itemChars * sizeof(char), itemChars) ?? "";
-                s = s.TrimEnd('\0').Trim();
+                // Каждая запись — фиксированный буфер на itemChars символов,
+                // но реальная строка обычно короче и завершена \0; читать
+                // ровно itemChars символов (как раньше) захватывало мусор из
+                // "хвоста" буфера после первого \0 — TrimEnd('\0') его не
+                // убирал, если этот мусор сам не заканчивался нулём. Отсюда и
+                // была кракозябра вида "Лоток 5Ф™ЏЁЄ..." в списке лотков.
+                // PtrToStringUni без явной длины сам останавливается на \0.
+                string s = (Marshal.PtrToStringUni(buf + i * itemChars * sizeof(char)) ?? "").Trim();
                 if (s.Length > 0) result.Add(s);
             }
         }
