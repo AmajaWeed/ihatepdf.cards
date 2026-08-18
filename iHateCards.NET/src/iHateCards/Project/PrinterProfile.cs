@@ -45,6 +45,20 @@ public sealed class PrintConfig
     public int Copies { get; set; } = 1;
     public bool Bw { get; set; }
     public bool Toner { get; set; }
+
+    /// <summary>Тип носителя для прямой печати PostScript, напр. «Heavyweight».
+    /// Пусто — принтер решает сам. Настройки драйвера в этом режиме не
+    /// применяются: RAW-задание идёт мимо драйвера.</summary>
+    public string MediaType { get; set; } = "";
+
+    /// <summary>Плотность бумаги, г/м² (0 — не указывать).</summary>
+    public int MediaWeight { get; set; }
+
+    /// <summary>Номер лотка (-1 — выбирает принтер).</summary>
+    public int MediaPosition { get; set; } = -1;
+
+    /// <summary>Ручная подача (обходной лоток).</summary>
+    public bool ManualFeed { get; set; }
 }
 
 /// <summary>
@@ -142,7 +156,11 @@ public sealed class PrinterProfile
             ["scalePct"] = Print.ScalePct,
             ["copies"] = Print.Copies,
             ["bw"] = Print.Bw,
-            ["toner"] = Print.Toner
+            ["toner"] = Print.Toner,
+            ["mediaType"] = Print.MediaType,
+            ["mediaWeight"] = Print.MediaWeight,
+            ["mediaPosition"] = Print.MediaPosition,
+            ["manualFeed"] = Print.ManualFeed
         }
     };
 
@@ -182,7 +200,11 @@ public sealed class PrinterProfile
             ScalePct = D(pr?["scalePct"], 100),
             Copies = Math.Max(1, (int)D(pr?["copies"], 1)),
             Bw = B(pr?["bw"], false),
-            Toner = B(pr?["toner"], false)
+            Toner = B(pr?["toner"], false),
+            MediaType = Str(pr?["mediaType"]) ?? "",
+            MediaWeight = (int)D(pr?["mediaWeight"], 0),
+            MediaPosition = (int)D(pr?["mediaPosition"], -1),
+            ManualFeed = B(pr?["manualFeed"], false)
         };
         return p;
     }

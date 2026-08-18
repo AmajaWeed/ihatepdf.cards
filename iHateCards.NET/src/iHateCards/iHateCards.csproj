@@ -6,8 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>iHateCards</AssemblyName>
-    <Version>1.0.0.2</Version>
-    <InformationalVersion>1.0.0b</InformationalVersion>
+    <Version>1.0.1</Version>
     <RootNamespace>iHateCards</RootNamespace>
     <ApplicationIcon Condition="Exists('Assets/app.ico')">Assets/app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>ru;en</SatelliteResourceLanguages>

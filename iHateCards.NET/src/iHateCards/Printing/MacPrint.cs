@@ -54,7 +54,7 @@ public static class MacPrint
 
     /// <summary>Печать готового PDF через CUPS (драйвер принтера сам растеризует).</summary>
     public static string PrintPdf(string printer, string pdfPath, int copies, bool fit,
-        bool duplex, bool tumble)
+        bool duplex, bool tumble, string mediaType = "", int mediaPosition = -1)
     {
         var psi = new ProcessStartInfo("lp")
         {
@@ -73,6 +73,14 @@ public static class MacPrint
         else
         {
             psi.ArgumentList.Add("-o"); psi.ArgumentList.Add("sides=one-sided");
+        }
+        if (!string.IsNullOrWhiteSpace(mediaType))
+        {
+            psi.ArgumentList.Add("-o"); psi.ArgumentList.Add("media-type=" + mediaType.Trim());
+        }
+        if (mediaPosition >= 0)
+        {
+            psi.ArgumentList.Add("-o"); psi.ArgumentList.Add("media-position=" + mediaPosition);
         }
         psi.ArgumentList.Add(pdfPath);
 

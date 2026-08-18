@@ -5,7 +5,21 @@ namespace iHateCards.Pdf;
 /// <summary>Страница для PostScript: DeviceCMYK (w*h*4) или DeviceGray (w*h).</summary>
 public sealed record PsPage(byte[] Data, bool Gray, int Width, int Height, double WidthMm, double HeightMm);
 
-public sealed record PsOptions(int Copies, bool Duplex, bool Tumble, double Scale, bool Fit);
+/// <summary>
+/// Параметры задания PostScript. Носитель (тип, плотность, лоток) приходится
+/// указывать здесь: RAW-задание идёт мимо драйвера принтера, поэтому выбранная
+/// в его диалоге «плотная бумага» до RIP не доезжает — принтер взял бы обычную.
+/// </summary>
+public sealed record PsOptions(
+    int Copies,
+    bool Duplex,
+    bool Tumble,
+    double Scale,
+    bool Fit,
+    string? MediaType = null,     // напр. "Heavyweight", "Cardstock" — имя из списка принтера
+    int MediaWeight = 0,          // г/м², 0 — не указывать
+    int MediaPosition = -1,       // номер лотка, -1 — не указывать (выбирает принтер)
+    bool ManualFeed = false);     // обходной лоток с ручной подачей
 
 /// <summary>
 /// DeviceCMYK (или DeviceGray для ч/б) PostScript Level 3 для прямой RAW-печати
@@ -14,6 +28,28 @@ public sealed record PsOptions(int Copies, bool Duplex, bool Tumble, double Scal
 /// </summary>
 public static class PostScriptWriter
 {
+    /// <summary>Собирает словарь setpagedevice с выбранным носителем
+    /// (пустая строка, если ничего не задано — тогда решает принтер).</summary>
+    internal static string MediaDict(PsOptions opts)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(opts.MediaType))
+            parts.Add($"/MediaType ({EscapePsString(opts.MediaType!.Trim())})");
+        if (opts.MediaWeight > 0)
+            parts.Add($"/MediaWeight {opts.MediaWeight}");
+        if (opts.MediaPosition >= 0)
+            parts.Add($"/MediaPosition {opts.MediaPosition}");
+        if (opts.ManualFeed)
+            parts.Add("/ManualFeed true");
+        return parts.Count == 0 ? "" : "<< " + string.Join(" ", parts) + " >>";
+    }
+
+    /// <summary>Экранирует строку PostScript: скобки и обратный слэш.</summary>
+    private static string EscapePsString(string s) => s
+        .Replace("\\", "\\\\")
+        .Replace("(", "\\(")
+        .Replace(")", "\\)");
+
     public static byte[] Build(IReadOnlyList<PsPage> pages, PsOptions opts)
     {
         var buf = new MemoryStream();
@@ -30,6 +66,12 @@ public static class PostScriptWriter
             W($"<< /Duplex true /Tumble {(opts.Tumble ? "true" : "false")} >> setpagedevice\n");
         else
             W("<< /Duplex false >> setpagedevice\n");
+
+        // Носитель: тип, плотность и лоток. Без этого RIP печатает на бумаге
+        // по умолчанию, что бы ни было выбрано в драйвере — RAW идёт мимо него.
+        string media = MediaDict(opts);
+        if (media.Length > 0)
+            W(media + " setpagedevice\n");
 
         int pageNo = 0;
         foreach (var pg in pages)

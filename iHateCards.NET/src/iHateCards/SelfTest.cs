@@ -316,6 +316,34 @@ public static class SelfTest
         Check(text.Contains("/DeviceCMYK setcolorspace"), "DeviceCMYK");
         Check(text.Contains("%%Page: 1 1"), "страница");
 
+        // Носитель: тип, плотность и лоток должны попадать в задание — RAW-печать
+        // идёт мимо драйвера, и без этого принтер берёт бумагу по умолчанию
+        var psMedia = PostScriptWriter.Build(
+            new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
+            new PsOptions(1, false, false, 1.0, false,
+                MediaType: "Heavyweight", MediaWeight: 250, MediaPosition: 4, ManualFeed: true));
+        string mediaText = System.Text.Encoding.Latin1.GetString(psMedia);
+        Check(mediaText.Contains("/MediaType (Heavyweight)"), "тип бумаги в задании");
+        Check(mediaText.Contains("/MediaWeight 250"), "плотность бумаги");
+        Check(mediaText.Contains("/MediaPosition 4"), "номер лотка");
+        Check(mediaText.Contains("/ManualFeed true"), "ручная подача");
+        Check(mediaText.IndexOf("setpagedevice", StringComparison.Ordinal)
+              < mediaText.IndexOf("%%Page:", StringComparison.Ordinal),
+            "носитель задан до первой страницы");
+
+        var psNoMedia = PostScriptWriter.Build(
+            new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
+            new PsOptions(1, false, false, 1.0, false));
+        Check(!System.Text.Encoding.Latin1.GetString(psNoMedia).Contains("/MediaType"),
+            "без выбора носителя решает принтер");
+
+        // Скобки в названии не должны ломать строку PostScript
+        var psEscape = PostScriptWriter.Build(
+            new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
+            new PsOptions(1, false, false, 1.0, false, MediaType: "Плотная (250 г/м²)"));
+        Check(System.Text.Encoding.Latin1.GetString(psEscape).Contains(@"\(250"),
+            "скобки в названии экранированы");
+
         var psFit = PostScriptWriter.Build(
             new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
             new PsOptions(1, false, false, 1.0, true));

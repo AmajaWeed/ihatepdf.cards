@@ -20,6 +20,14 @@ public sealed class PrintOptions
     public string Ip = "";
     public bool Duplex;
     public bool Tumble;
+
+    /// <summary>Носитель: тип, плотность и лоток. Передаются в само задание,
+    /// потому что прямая печать CMYK идёт мимо драйвера принтера — выбранная
+    /// в его диалоге бумага в этом режиме не применяется.</summary>
+    public string MediaType = "";
+    public int MediaWeight;
+    public int MediaPosition = -1;
+    public bool ManualFeed;
 }
 
 public sealed record PrintResult(bool Ok, string Printer, string Mode, string? Error = null);
@@ -93,7 +101,9 @@ public static class PrintService
                         }
                     }
                     byte[] ps = PostScriptWriter.Build(psPages,
-                        new PsOptions(o.Copies, o.Duplex, o.Tumble, o.Fit ? 1.0 : o.Scale, o.Fit));
+                        new PsOptions(o.Copies, o.Duplex, o.Tumble, o.Fit ? 1.0 : o.Scale, o.Fit,
+                            MediaType: o.MediaType, MediaWeight: o.MediaWeight,
+                            MediaPosition: o.MediaPosition, ManualFeed: o.ManualFeed));
 
                     string ip = o.Ip.Trim();
                     if (ip.Length > 0)
@@ -156,7 +166,8 @@ public static class PrintService
                     File.WriteAllBytes(tmp, pdf);
                     mode = OperatingSystem.IsWindows()
                         ? GhostscriptPrinter.PrintPdf(name, tmp, o.Copies, fit, dpi)
-                        : MacPrint.PrintPdf(name, tmp, o.Copies, fit, o.Duplex, o.Tumble);
+                        : MacPrint.PrintPdf(name, tmp, o.Copies, fit, o.Duplex, o.Tumble,
+                            o.MediaType, o.MediaPosition);
                 }
                 finally
                 {

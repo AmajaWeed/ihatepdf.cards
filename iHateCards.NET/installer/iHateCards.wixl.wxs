@@ -22,7 +22,7 @@
              InstallPrivileges="limited"
              Manufacturer="iHatePDF"
              Description="iHateCards — раскладка карт для печати (CMYK SWOP)"
-             Comments="iHateCards 1.0.0b" />
+             Comments="iHateCards 1.0.1" />
 
     <Media Id="1" Cabinet="ihatecards.cab" EmbedCab="yes" />
 
