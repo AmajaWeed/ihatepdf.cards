@@ -10,7 +10,7 @@
            Name="iHateCards"
            Language="1049"
            Codepage="1251"
-           Version="1.0.3"
+           Version="1.0.4"
            Manufacturer="iHatePDF"
            UpgradeCode="7C4E9A62-1B33-4F5E-9E21-0A8D6C5B2F41">
 
@@ -22,7 +22,7 @@
              InstallPrivileges="limited"
              Manufacturer="iHatePDF"
              Description="iHateCards — раскладка карт для печати (CMYK SWOP)"
-             Comments="iHateCards 1.0.3" />
+             Comments="iHateCards 1.0.4" />
 
     <Media Id="1" Cabinet="ihatecards.cab" EmbedCab="yes" />
 
