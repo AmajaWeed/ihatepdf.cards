@@ -10,6 +10,8 @@
       <Setter Property="Background" Value="#161616"/>
       <Setter Property="Foreground" Value="#eef0f6"/>
       <Setter Property="FontSize" Value="13"/>
+      <!-- Century Gothic, если установлен; иначе вшитый Jost (см. AppFonts) -->
+      <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
     </Style>
 
     <Style Selector="TextBlock.sectionTitle">

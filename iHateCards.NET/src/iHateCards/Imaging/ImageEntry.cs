@@ -29,6 +29,11 @@ public sealed class ImageEntry : IDisposable
 
     public int Quantity { get; set; } = 1;
 
+    /// <summary>Разворачивать изображение на 90°, если его ориентация не совпадает
+    /// с ориентацией кадра. Значение по умолчанию берётся из общей настройки,
+    /// но у каждой карты его можно переопределить своим чекбоксом.</summary>
+    public bool AutoRotateImage { get; set; }
+
     /// <summary>Индивидуальная рубашка этой карты (режим individualBacks).</summary>
     public ImageEntry? BackImage { get; set; }
 

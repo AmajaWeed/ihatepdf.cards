@@ -101,7 +101,15 @@
             </Grid>
             <Grid ColumnDefinitions="Auto,*">
               <ToggleSwitch Name="AutoRotateToggle"/>
-              <TextBlock Grid.Column="1" Text="Авто-разворот" VerticalAlignment="Center" Margin="8,0,0,0"/>
+              <TextBlock Grid.Column="1" Text="Авто-разворот изображения в кадре"
+                         VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,0,0,0"
+                         ToolTip.Tip="Ставит галку всем картам; у каждой карты в списке справа её можно снять"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <ToggleSwitch Name="AutoRotateFrameToggle"/>
+              <TextBlock Grid.Column="1" Text="Авто-разворот кадра (больше карт на лист)"
+                         VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,0,0,0"
+                         ToolTip.Tip="Разворачивает саму карточку на 90°, если так на лист помещается больше карт"/>
             </Grid>
             <Grid ColumnDefinitions="Auto,*">
               <ToggleSwitch Name="PolaroidToggle"/>
@@ -234,6 +242,8 @@
                     ToolTip.Tip="Открыть проект .hate (Ctrl+O)"/>
           </Grid>
           <Button Name="ClearBtn" Classes="secondary" Content="Очистить"/>
+          <Button Name="UpdateBtn" Classes="secondary" Content="Проверить обновления"
+                  ToolTip.Tip="Проверить наличие новой версии"/>
         </StackPanel>
       </Grid>
     </Border>

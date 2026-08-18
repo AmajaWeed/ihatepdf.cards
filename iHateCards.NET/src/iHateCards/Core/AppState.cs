@@ -28,7 +28,16 @@ public sealed class AppState
     public CalibSide CalibFront = new();
     public CalibSide CalibBack = new();
     public bool FitImage = false;
+    /// <summary>Авто-разворот изображения внутри кадра — значение по умолчанию
+    /// для новых карт (у каждой карты есть свой чекбокс).</summary>
     public bool AutoRotate = false;
+    /// <summary>Авто-разворот самого кадра на листе: если карта, повёрнутая на
+    /// 90°, помещается на лист в большем количестве — раскладка разворачивается.</summary>
+    public bool AutoRotateFrame = false;
+    /// <summary>Сторона переворота при двухсторонней печати: long | short.
+    /// Берётся из профиля принтера (.hateprn), влияет на зеркалирование и
+    /// на угол поворота содержимого оборота.</summary>
+    public string DuplexFlipEdge = "long";
     public double OffsetX = 0;
     public double OffsetY = 0;
     public string CurrentSide = "front";
@@ -44,6 +53,8 @@ public sealed class AppState
     public int CurrentPage = 0;
 
     // Вычисляется CalculateLayout()
+    /// <summary>Кадр развёрнут на 90° (решает авто-разворот кадра).</summary>
+    public bool FrameRotated;
     public int CardsPerRow;
     public int CardsPerCol;
     public int CardsPerPage;
@@ -51,8 +62,15 @@ public sealed class AppState
 
     public PaperSize Paper => PaperSizes.ByKey(PaperSizeKey);
 
+    /// <summary>Размер реза самой карты (логический, для показа в интерфейсе).</summary>
     public double CutWidth => CardWidth - Bleed * 2;
     public double CutHeight => CardHeight - Bleed * 2;
+
+    /// <summary>Размер ячейки на листе — с учётом разворота кадра.</summary>
+    public double CellWidth => FrameRotated ? CardHeight : CardWidth;
+    public double CellHeight => FrameRotated ? CardWidth : CardHeight;
+    public double CellCutWidth => CellWidth - Bleed * 2;
+    public double CellCutHeight => CellHeight - Bleed * 2;
 
     public CalibSide GetCalib(string side) => side == "back" ? CalibBack : CalibFront;
 

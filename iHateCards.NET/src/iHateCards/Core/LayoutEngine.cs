@@ -43,11 +43,18 @@ public static class LayoutEngine
                 s.CardWidth = workW / 2; s.CardHeight = workH / 2;
             }
             s.Bleed = 0;
+            s.FrameRotated = false;
         }
         else
         {
-            s.CardsPerRow = (int)Math.Floor(workW / s.CardWidth);
-            s.CardsPerCol = (int)Math.Floor(workH / s.CardHeight);
+            // Авто-разворот кадра: считаем обе ориентации ячейки и берём ту,
+            // в которой на лист влезает больше карт (при равенстве — исходную).
+            int normal = Fit(workW, s.CardWidth) * Fit(workH, s.CardHeight);
+            int rotated = Fit(workW, s.CardHeight) * Fit(workH, s.CardWidth);
+            s.FrameRotated = s.AutoRotateFrame && rotated > normal;
+
+            s.CardsPerRow = Fit(workW, s.CellWidth);
+            s.CardsPerCol = Fit(workH, s.CellHeight);
         }
 
         s.CardsPerPage = s.CardsPerRow * s.CardsPerCol;
@@ -67,8 +74,8 @@ public static class LayoutEngine
         double instrH = InstructionHeight(s);
         double workW = paper.Width - margin * 2;
         double workH = paper.Height - margin * 2 - instrH;
-        double usedW = s.CardsPerRow * s.CardWidth;
-        double usedH = s.CardsPerCol * s.CardHeight;
+        double usedW = s.CardsPerRow * s.CellWidth;
+        double usedH = s.CardsPerCol * s.CellHeight;
         return (margin + (workW - usedW) / 2, margin + instrH + (workH - usedH) / 2);
     }
 
@@ -115,13 +122,37 @@ public static class LayoutEngine
 
     // ---- Авто-поворот ----
 
-    public static bool NeedsAutoRotate(AppState s, double imgW, double imgH, double cellW, double cellH)
+    public static bool NeedsAutoRotate(bool enabled, double imgW, double imgH, double cellW, double cellH)
     {
-        if (!s.AutoRotate) return false;
+        if (!enabled) return false;
         if (imgW <= 0 || imgH <= 0) return false;
         bool imgLandscape = imgW > imgH;
         bool cellLandscape = cellW > cellH;
         return imgLandscape != cellLandscape;
+    }
+
+    private static int Fit(double avail, double size) =>
+        size > 0 ? (int)Math.Floor(avail / size) : 0;
+
+    /// <summary>Переворот по короткой стороне (tumble) — зеркалим ряды, а не колонки.</summary>
+    public static bool IsShortEdgeFlip(AppState s) =>
+        string.Equals(s.DuplexFlipEdge, "short", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Угол, под которым содержимое нужно НАПЕЧАТАТЬ на обороте, чтобы после
+    /// переворота листа оно совпало по ориентации с лицом.
+    ///
+    /// Переворот по длинной стороне (зеркало по вертикали) инвертирует угол:
+    /// напечатанные +90° видны как −90°, поэтому печатаем −90°. Переворот по
+    /// короткой стороне (tumble) дополнительно разворачивает лист на 180°.
+    /// Без поворота (0°) обе формулы дают привычный результат — как раньше.
+    /// </summary>
+    public static double BackRotation(double frontDeg, bool shortEdge)
+    {
+        double d = shortEdge ? 180 - frontDeg : -frontDeg;
+        d %= 360;
+        if (d < 0) d += 360;
+        return d;
     }
 
     // ---- Метки реза ----

@@ -1,6 +1,7 @@
 using iHateCards.Core;
 using iHateCards.Imaging;
 using iHateCards.Pdf;
+using iHateCards.Update;
 using SkiaSharp;
 
 namespace iHateCards;
@@ -81,10 +82,39 @@ public static class SelfTest
         LayoutEngine.CalculateLayout(sa);
         Save(PageRenderer.Render(sa, 0, "front", 100, new PageRenderer.Options(true, false)), "demo-a3-calib.png");
 
-        // 5) Мишень калибровки
+        // 5) Развороты: карта 90×65 с явной стрелкой «верх» — лицо и оборот.
+        //    После мысленного переворота листа влево-вправо стрелки на обороте
+        //    должны смотреть так же, как на лице (не вверх ногами).
+        ImageEntry Arrow(SKColor bg, string label)
+        {
+            var bmp = new SKBitmap(900, 600, SKColorType.Rgba8888, SKAlphaType.Opaque);
+            using (var c = new SKCanvas(bmp))
+            {
+                c.Clear(bg);
+                using var ink = new SKPaint { Color = SKColors.White, IsAntialias = true, StrokeWidth = 26, Style = SKPaintStyle.Stroke };
+                c.DrawLine(450, 520, 450, 120, ink);          // ствол стрелки
+                c.DrawLine(450, 120, 340, 240, ink);          // левое перо
+                c.DrawLine(450, 120, 560, 240, ink);          // правое перо
+                using var font = new SKFont(AppFonts.PrintTypeface, 90);
+                using var text = new SKPaint { Color = SKColors.White, IsAntialias = true };
+                c.DrawText(label, 450, 580, SKTextAlign.Center, font, text);
+            }
+            return new ImageEntry { Name = label, OriginalBytes = SkiaUtil.EncodePng(bmp), Extension = ".png", Bitmap = bmp };
+        }
+
+        var sr = new AppState { CardWidth = 90, CardHeight = 65, AutoRotateFrame = true, DuplexMode = true, ShowCropMarks = true };
+        var face = Arrow(new SKColor(0x8B, 0x1A, 0x2B), "ЛИЦО"); face.Quantity = 6;
+        sr.Images.Add(face);
+        sr.BackImage = Arrow(new SKColor(0x1A, 0x3B, 0x8B), "ОБОРОТ");
+        LayoutEngine.CalculateLayout(sr);
+        Save(PageRenderer.Render(sr, 0, "front", 120, new PageRenderer.Options(true, false)), "demo-rot-front.png");
+        Save(PageRenderer.Render(sr, 0, "back", 120, new PageRenderer.Options(true, false)), "demo-rot-back.png");
+        Console.WriteLine($"разворот кадра: {sr.FrameRotated}, ячейка {sr.CellWidth}×{sr.CellHeight}, карт/лист {sr.CardsPerPage}");
+
+        // 6) Мишень калибровки
         Save(CalibrationDetector.RenderTargetPage(PaperSizes.A4, "ЛИЦО", "a4", 100), "demo-target.png");
 
-        // 6) Детектор калибровки на собственной мишени (синтетический скан)
+        // 7) Детектор калибровки на собственной мишени (синтетический скан)
         using (var target = CalibrationDetector.RenderTargetPage(PaperSizes.A4, "ЛИЦО", "a4", 100))
         {
             var det = CalibrationDetector.Detect(target, PaperSizes.A4);
@@ -102,8 +132,13 @@ public static class SelfTest
         TestPolaroid();
         TestPdfStructure();
         TestPostScript();
+        TestAutoRotate();
         TestCmykAgainstReference(args);
         TestSoftproof();
+        TestUpdates();
+        if (!OperatingSystem.IsWindows()) TestUpdateApply();
+        TestPrintBackend();
+        TestPrinterProfile();
         TestHateRoundTrip();
         Console.WriteLine(_fails == 0 ? "SELFTEST OK" : $"SELFTEST FAILED: {_fails} провал(ов)");
         return _fails == 0 ? 0 : 1;
@@ -283,6 +318,45 @@ public static class SelfTest
         Check(avg <= 0.5, "avg diff ≤ 0.5", avg.ToString("0.###"));
     }
 
+    private static void TestAutoRotate()
+    {
+        Console.WriteLine("Авто-развороты:");
+
+        // Кадр: карта 90×65 (альбомная) на A4 — в развёрнутом виде помещается больше
+        var s = new AppState { CardWidth = 90, CardHeight = 65, AutoRotateFrame = false };
+        LayoutEngine.CalculateLayout(s);
+        int normal = s.CardsPerPage;
+        s.AutoRotateFrame = true;
+        LayoutEngine.CalculateLayout(s);
+        Check(s.FrameRotated && s.CardsPerPage > normal,
+            $"кадр развёрнут: {normal} → {s.CardsPerPage} карт", $"rotated={s.FrameRotated}");
+        Check(Math.Abs(s.CellWidth - 65) < 1e-9 && Math.Abs(s.CellHeight - 90) < 1e-9,
+            "ячейка стала 65×90", $"{s.CellWidth}×{s.CellHeight}");
+
+        // Портретная карта на A4 — разворот не выгоден, кадр остаётся как есть
+        var p = new AppState { CardWidth = 65, CardHeight = 90, AutoRotateFrame = true };
+        LayoutEngine.CalculateLayout(p);
+        Check(!p.FrameRotated && p.CardsPerPage == 9, "портретная карта не разворачивается",
+            $"rotated={p.FrameRotated}, {p.CardsPerPage}");
+
+        // Оборот: угол инвертируется по длинной стороне, 180−угол по короткой
+        Check(LayoutEngine.BackRotation(0, false) == 0, "0° → 0° (длинная сторона)");
+        Check(LayoutEngine.BackRotation(90, false) == 270, "90° → 270° (длинная сторона)");
+        Check(LayoutEngine.BackRotation(180, false) == 180, "180° → 180° (длинная сторона)");
+        Check(LayoutEngine.BackRotation(0, true) == 180, "0° → 180° (короткая сторона)");
+        Check(LayoutEngine.BackRotation(90, true) == 90, "90° → 90° (короткая сторона)");
+        // Двойное применение возвращает исходный угол — признак корректной инверсии
+        Check(LayoutEngine.BackRotation(LayoutEngine.BackRotation(90, false), false) == 90,
+            "инверсия обратима (длинная)");
+        Check(LayoutEngine.BackRotation(LayoutEngine.BackRotation(90, true), true) == 90,
+            "инверсия обратима (короткая)");
+
+        // Авто-разворот изображения — по флагу карты, а не глобально
+        Check(LayoutEngine.NeedsAutoRotate(true, 200, 100, 65, 90), "альбомное фото в портретной ячейке");
+        Check(!LayoutEngine.NeedsAutoRotate(false, 200, 100, 65, 90), "выключенный флаг не разворачивает");
+        Check(!LayoutEngine.NeedsAutoRotate(true, 100, 200, 65, 90), "совпадающие ориентации не трогаем");
+    }
+
     private static void TestSoftproof()
     {
         Console.WriteLine("Софтпруф:");
@@ -299,6 +373,143 @@ public static class SelfTest
             $"{cw.Red},{cw.Green},{cw.Blue}");
         vivid.Dispose();
         white.Dispose();
+    }
+
+    private static void TestUpdates()
+    {
+        Console.WriteLine("Обновления:");
+        Check(AppVersion.Compare("2.1.0", "2.0.9") > 0, "2.1.0 новее 2.0.9");
+        Check(AppVersion.Compare("2.0.0", "2.0.0") == 0, "равные версии");
+        Check(AppVersion.Compare("2.0.0", "10.0.0") < 0, "числовое сравнение, не строковое");
+        Check(AppVersion.IsNewer("2.1.0", "2.0.0") && !AppVersion.IsNewer("2.0.0", "2.1.0"),
+            "IsNewer в обе стороны");
+        Check(AppVersion.Rid.Contains('-'), "RID платформы: " + AppVersion.Rid);
+        Check(AppVersion.Current != "0.0.0", "версия сборки читается: " + AppVersion.Current);
+
+        const string manifest = """
+        { "latest": "9.9.9", "published": "2026-08-18",
+          "notes": ["Первое", "Второе"],
+          "packages": {
+            "win-x64":   { "url": "https://example/win.zip", "sha256": "AA", "size": 10 },
+            "osx-arm64": { "url": "https://example/osx.zip", "sha256": "BB", "size": 20 } } }
+        """;
+        var win = UpdateChecker.Parse(manifest, "win-x64");
+        Check(win != null && win.Version == "9.9.9" && win.Package.Url.EndsWith("win.zip"),
+            "разбор манифеста для win-x64");
+        Check(win!.Notes.Length == 2 && win.Notes[0] == "Первое", "патчноут разобран");
+        var osx = UpdateChecker.Parse(manifest, "osx-arm64");
+        Check(osx != null && osx.Package.Sha256 == "BB", "выбор пакета по платформе");
+        Check(UpdateChecker.Parse(manifest, "linux-x64") == null, "нет пакета — нет обновления");
+        Check(UpdateChecker.Parse("{}", "win-x64") == null, "пустой манифест не ломает проверку");
+
+        // Контрольная сумма файла
+        string tmp = Path.Combine(Path.GetTempPath(), $"selftest-{Guid.NewGuid():N}.bin");
+        try
+        {
+            File.WriteAllText(tmp, "iHateCards");
+            string sha = UpdateInstaller.Sha256(tmp);
+            Check(sha.Length == 64 && sha == UpdateInstaller.Sha256(tmp), "SHA-256 считается стабильно");
+        }
+        finally { File.Delete(tmp); }
+    }
+
+    /// <summary>Проверка подмены файлов: скрипт обновления должен заменить
+    /// «установленную» версию новой и убрать резервную копию.</summary>
+    private static void TestUpdateApply()
+    {
+        Console.WriteLine("Применение обновления:");
+        string root = Path.Combine(Path.GetTempPath(), $"selftest-upd-{Guid.NewGuid():N}");
+        string target = Path.Combine(root, "app");
+        string staging = Path.Combine(root, "staging");
+        try
+        {
+            Directory.CreateDirectory(target);
+            Directory.CreateDirectory(staging);
+            File.WriteAllText(Path.Combine(target, "version.txt"), "2.1.0");
+            File.WriteAllText(Path.Combine(target, "old-file.txt"), "должен исчезнуть");
+            File.WriteAllText(Path.Combine(staging, "version.txt"), "2.2.0");
+
+            // PID заведомо несуществующего процесса — скрипт не ждёт
+            UpdateInstaller.LaunchApplier(staging, target, waitPid: 999999);
+
+            string version = "";
+            for (int i = 0; i < 100; i++)
+            {
+                Thread.Sleep(100);
+                string vf = Path.Combine(target, "version.txt");
+                if (File.Exists(vf))
+                {
+                    version = File.ReadAllText(vf).Trim();
+                    if (version == "2.2.0") break;
+                }
+            }
+            Check(version == "2.2.0", "файлы заменены новой версией", version);
+            Check(!File.Exists(Path.Combine(target, "old-file.txt")), "лишние файлы старой версии убраны");
+            Check(!Directory.Exists(target + ".old"), "резервная копия удалена после успеха");
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+            try { Directory.Delete(target + ".old", recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>Только чтение: список очередей печати текущей ОС.
+    /// Заданий не отправляем — это делается пользователем из интерфейса.</summary>
+    private static void TestPrintBackend()
+    {
+        Console.WriteLine("Подсистема печати:");
+        Check(Printing.PrintService.IsSupported == (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()),
+            "бэкенд доступен на этой ОС");
+        if (!Printing.PrintService.IsSupported) return;
+
+        var (printers, def) = Printing.PrintService.ListPrinters();
+        Console.WriteLine($"  найдено очередей: {printers.Count}" +
+                          (def.Length > 0 ? $", по умолчанию: {def}" : ""));
+        Check(printers.Count == 0 || printers.All(p => p.Length > 0), "имена очередей непустые");
+        Check(def.Length == 0 || printers.Contains(def), "принтер по умолчанию есть в списке");
+    }
+
+    private static void TestPrinterProfile()
+    {
+        Console.WriteLine("Профиль принтера (.hateprn):");
+        var p = new PrinterProfile { Printer = "Xerox AltaLink C8045" };
+        p.Duplex.FlipEdge = "short";
+        p.Duplex.OffsetX = 0.4; p.Duplex.OffsetY = -0.2;
+        p.Print.PostScript = true; p.Print.Ip = "192.168.1.3"; p.Print.Dpi = 360;
+        p.SetAutoCalibration("front", new CalibSide { Dx = 0.15, Dy = -0.11, Angle = 0.02 });
+        p.SetAutoCalibration("back", new CalibSide { Dx = -0.2, Dy = 0.05, Angle = -0.03 });
+        p.Calibration.ManualFront = new CalibSide { Dx = 1, Dy = 2, Angle = 3 };
+
+        string json = p.ToJson().ToJsonString();
+        var r = PrinterProfile.Read(json, "fallback");
+        Check(r.Printer == p.Printer && r.Duplex.FlipEdge == "short", "принтер и сторона переворота");
+        Check(Math.Abs(r.Duplex.OffsetX - 0.4) < 1e-9 && Math.Abs(r.Duplex.OffsetY + 0.2) < 1e-9, "смещения оборота");
+        Check(r.Print.PostScript && r.Print.Ip == "192.168.1.3" && r.Print.Dpi == 360, "настройки печати");
+        Check(Math.Abs(r.Calibration.AutoFront.Dx - 0.15) < 1e-9
+            && Math.Abs(r.Calibration.AutoBack.Angle + 0.03) < 1e-9, "авто-калибровка");
+        Check(Math.Abs(r.Calibration.ManualFront.Dx - 1) < 1e-9, "ручные значения хранятся отдельно");
+        Check(r.Calibration.MeasuredAt != null, "дата измерения записана");
+
+        // Режим авто/ручной выбирает, что применяется к раскладке
+        var st = new AppState();
+        r.ApplyTo(st);
+        Check(st.DuplexFlipEdge == "short" && Math.Abs(st.CalibFront.Dx - 0.15) < 1e-9,
+            "авто-режим применяется к раскладке");
+        r.Calibration.UseAuto = false;
+        r.ApplyTo(st);
+        Check(Math.Abs(st.CalibFront.Dx - 1) < 1e-9, "ручной режим применяется к раскладке");
+
+        // Файл читается с диска
+        string tmp = Path.Combine(Path.GetTempPath(), $"selftest-{Guid.NewGuid():N}{PrinterProfile.Extension}");
+        try
+        {
+            p.SaveAs(tmp);
+            var imported = PrinterProfile.Import(tmp);
+            Check(imported.Duplex.FlipEdge == "short" && imported.Print.Dpi == 360, "импорт файла профиля");
+            Check(File.ReadAllText(tmp).Contains("\"flipEdge\""), "файл человекочитаемый (JSON с отступами)");
+        }
+        finally { File.Delete(tmp); }
     }
 
     private static void TestHateRoundTrip()

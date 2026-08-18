@@ -17,6 +17,8 @@ sealed class Program
             Environment.Exit(SelfTest.RenderDemo(args[1]));
             return;
         }
+        if (args.Length > 1 && args[0] == "--toastshot")
+            App.ToastShotPath = args[1];
         if (args.Length > 1 && args[0] == "--uishot")
         {
             App.UiShotPath = args[1];
@@ -36,6 +38,5 @@ sealed class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .WithInterFont()
             .LogToTrace();
 }

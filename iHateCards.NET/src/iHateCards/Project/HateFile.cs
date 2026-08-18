@@ -44,7 +44,8 @@ public static class HateFile
                 {
                     ["name"] = img.Name,
                     ["asset"] = AddAsset(img, "face"),
-                    ["quantity"] = img.Quantity
+                    ["quantity"] = img.Quantity,
+                    ["autoRotateImage"] = img.AutoRotateImage
                 };
                 if (img.BackImage != null)
                 {
@@ -86,6 +87,8 @@ public static class HateFile
                 },
                 ["fitImage"] = s.FitImage,
                 ["autoRotate"] = s.AutoRotate,
+                ["autoRotateFrame"] = s.AutoRotateFrame,
+                ["duplexFlipEdge"] = s.DuplexFlipEdge,
                 ["offsetX"] = s.OffsetX,
                 ["offsetY"] = s.OffsetY,
                 ["polaroidMode"] = s.PolaroidMode,
@@ -140,6 +143,8 @@ public static class HateFile
             CalibMode = B(layout["calibMode"]),
             FitImage = B(layout["fitImage"]),
             AutoRotate = B(layout["autoRotate"]),
+            AutoRotateFrame = B(layout["autoRotateFrame"]),
+            DuplexFlipEdge = layout["duplexFlipEdge"]?.GetValue<string>() ?? "long",
             OffsetX = D(layout["offsetX"], 0),
             OffsetY = D(layout["offsetY"], 0),
             PolaroidMode = B(layout["polaroidMode"]),
@@ -182,6 +187,7 @@ public static class HateFile
             if (node == null) continue;
             var img = LoadAsset(node);
             img.Quantity = Math.Clamp((int)D(node["quantity"], 1), 1, 99);
+            img.AutoRotateImage = B(node["autoRotateImage"], s.AutoRotate);
             if (node["back"] is JsonNode backNode)
                 img.BackImage = LoadAsset(backNode);
             s.Images.Add(img);

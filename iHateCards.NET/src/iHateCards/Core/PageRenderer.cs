@@ -47,17 +47,20 @@ public static class PageRenderer
         var expanded = s.ExpandedImages();
         int startIdx = pageIndex * s.CardsPerPage;
         var pageImages = expanded.Skip(startIdx).Take(s.CardsPerPage).ToList();
-        double cutW = s.CutWidth, cutH = s.CutHeight;
-        var filled = new List<(int DisplayCol, int Row)>();
+        bool shortEdge = LayoutEngine.IsShortEdgeFlip(s);
+        var filled = new List<(int Col, int Row)>();
 
         for (int row = 0; row < s.CardsPerCol; row++)
         {
             for (int col = 0; col < s.CardsPerRow; col++)
             {
                 int idx = row * s.CardsPerRow + col;
-                int displayCol = isBack ? (s.CardsPerRow - 1 - col) : col;
-                double x = baseX + displayCol * s.CardWidth;
-                double y = baseY + row * s.CardHeight;
+                // Оборот зеркалится: по длинной стороне переворота — колонки,
+                // по короткой (tumble) — ряды.
+                int displayCol = (isBack && !shortEdge) ? (s.CardsPerRow - 1 - col) : col;
+                int displayRow = (isBack && shortEdge) ? (s.CardsPerCol - 1 - row) : row;
+                double x = baseX + displayCol * s.CellWidth;
+                double y = baseY + displayRow * s.CellHeight;
 
                 ImageEntry? data = null;
                 if (idx < pageImages.Count)
@@ -70,75 +73,111 @@ public static class PageRenderer
                 if (data == null)
                 {
                     if (opt.Preview)
-                        DrawEmptySlot(canvas, x, y, s.CardWidth, s.CardHeight, scale, idx + 1);
+                        DrawEmptySlot(canvas, x, y, s.CellWidth, s.CellHeight, scale, idx + 1);
                     continue;
                 }
 
-                var img = data.DisplayBitmap(opt.Softproof);
-                if (s.PolaroidMode)
-                {
-                    using var white = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
-                    canvas.DrawRect(Rect(x, y, s.CardWidth, s.CardHeight, scale), white);
-                    var photo = LayoutEngine.PolaroidPhotoArea(s);
-                    DrawFitted(canvas, s, img, x + s.PolaroidSide, y + s.PolaroidTop,
-                        photo.W, photo.H, scale);
-                }
-                else
-                {
-                    DrawFitted(canvas, s, img, x, y, s.CardWidth, s.CardHeight, scale);
-                }
-                filled.Add((displayCol, row));
+                DrawCard(canvas, s, data.DisplayBitmap(opt.Softproof), data.AutoRotateImage,
+                    x, y, scale, isBack, shortEdge);
+                filled.Add((displayCol, displayRow));
 
                 if (opt.Preview && s.Bleed > 0)
-                    DrawCutLine(canvas, x + s.Bleed, y + s.Bleed, cutW, cutH, scale);
+                    DrawCutLine(canvas, x + s.Bleed, y + s.Bleed, s.CellCutWidth, s.CellCutHeight, scale);
             }
         }
 
         if (s.ShowCropMarks && filled.Count > 0)
-            DrawCropMarks(canvas, s, filled, baseX, baseY, cutW, cutH, scale);
+            DrawCropMarks(canvas, s, filled, baseX, baseY, scale);
 
         return bmp;
     }
 
-    /// <summary>Порт drawFitted: cover/contain + авто-поворот 90°, с клипом по ячейке.</summary>
-    private static void DrawFitted(SKCanvas canvas, AppState s, SKBitmap img,
-        double dxMm, double dyMm, double dwMm, double dhMm, double scale)
+    /// <summary>
+    /// Рисует содержимое одной ячейки: белую рамку полароида (если включена) и
+    /// изображение с учётом двух независимых разворотов — кадра на листе и
+    /// изображения внутри кадра.
+    ///
+    /// На обороте все углы инвертируются (а при перевороте по короткой стороне
+    /// ячейка дополнительно разворачивается на 180°), иначе после переворота
+    /// листа рубашка окажется вверх ногами относительно лица. Само изображение
+    /// при этом НЕ зеркалится — зеркалится только расположение ячеек.
+    /// </summary>
+    private static void DrawCard(SKCanvas canvas, AppState s, SKBitmap img, bool autoRotateImage,
+        double cellX, double cellY, double scale, bool isBack, bool shortEdge)
     {
-        float dx = (float)(dxMm * scale), dy = (float)(dyMm * scale);
-        float dw = (float)(dwMm * scale), dh = (float)(dhMm * scale);
-        bool autoRot = LayoutEngine.NeedsAutoRotate(s, img.Width, img.Height, dwMm, dhMm);
+        float cx = (float)((cellX + s.CellWidth / 2) * scale);
+        float cy = (float)((cellY + s.CellHeight / 2) * scale);
 
         canvas.Save();
-        canvas.ClipRect(new SKRect(dx, dy, dx + dw, dy + dh));
+        canvas.ClipRect(Rect(cellX, cellY, s.CellWidth, s.CellHeight, scale));
+        canvas.Translate(cx, cy);
+        if (isBack && shortEdge) canvas.RotateDegrees(180);
+        float sign = isBack ? -1f : 1f;
+        if (s.FrameRotated) canvas.RotateDegrees(90 * sign);
+
+        // Дальше — координаты самой карты: прямоугольник CardWidth × CardHeight
+        // вокруг начала координат (в мм, умноженных на scale).
+        float halfW = (float)(s.CardWidth / 2 * scale);
+        float halfH = (float)(s.CardHeight / 2 * scale);
+
+        if (s.PolaroidMode)
+        {
+            using var white = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
+            canvas.DrawRect(new SKRect(-halfW, -halfH, halfW, halfH), white);
+            var photo = LayoutEngine.PolaroidPhotoArea(s);
+            // Фото-окно смещено относительно центра карты (низ полароида шире верха)
+            double photoCx = s.PolaroidSide + photo.W / 2 - s.CardWidth / 2;
+            double photoCy = s.PolaroidTop + photo.H / 2 - s.CardHeight / 2;
+            DrawImageBox(canvas, s, img, autoRotateImage,
+                (float)(photoCx * scale), (float)(photoCy * scale),
+                photo.W, photo.H, scale, sign);
+        }
+        else
+        {
+            DrawImageBox(canvas, s, img, autoRotateImage, 0, 0, s.CardWidth, s.CardHeight, scale, sign);
+        }
+
+        canvas.Restore();
+    }
+
+    /// <summary>Вписывает изображение в прямоугольник (cover/contain), с авто-поворотом
+    /// на 90°, если ориентация изображения не совпадает с ориентацией окна.</summary>
+    private static void DrawImageBox(SKCanvas canvas, AppState s, SKBitmap img, bool autoRotateImage,
+        float boxCx, float boxCy, double boxWmm, double boxHmm, double scale, float sign)
+    {
+        float bw = (float)(boxWmm * scale), bh = (float)(boxHmm * scale);
+        bool imgRot = LayoutEngine.NeedsAutoRotate(autoRotateImage, img.Width, img.Height, boxWmm, boxHmm);
+
+        canvas.Save();
+        canvas.ClipRect(new SKRect(boxCx - bw / 2, boxCy - bh / 2, boxCx + bw / 2, boxCy + bh / 2));
         if (s.FitImage)
         {
             using var white = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
-            canvas.DrawRect(new SKRect(dx, dy, dx + dw, dy + dh), white);
+            canvas.DrawRect(new SKRect(boxCx - bw / 2, boxCy - bh / 2, boxCx + bw / 2, boxCy + bh / 2), white);
         }
-        canvas.Translate(dx + dw / 2, dy + dh / 2);
-        if (autoRot) canvas.RotateDegrees(90);
+        canvas.Translate(boxCx, boxCy);
+        if (imgRot) canvas.RotateDegrees(90 * sign);
 
-        float boxW = autoRot ? dh : dw, boxH = autoRot ? dw : dh;
+        float fitW = imgRot ? bh : bw, fitH = imgRot ? bw : bh;
         double ar = (double)img.Width / img.Height;
-        double bar = boxW / (double)boxH;
+        double bar = fitW / (double)fitH;
         float drawW, drawH;
         if (s.FitImage)  // contain
         {
-            if (ar > bar) { drawW = boxW; drawH = (float)(boxW / ar); }
-            else { drawH = boxH; drawW = (float)(boxH * ar); }
+            if (ar > bar) { drawW = fitW; drawH = (float)(fitW / ar); }
+            else { drawH = fitH; drawW = (float)(fitH * ar); }
         }
         else             // cover
         {
-            if (ar > bar) { drawH = boxH; drawW = (float)(boxH * ar); }
-            else { drawW = boxW; drawH = (float)(boxW / ar); }
+            if (ar > bar) { drawH = fitH; drawW = (float)(fitH * ar); }
+            else { drawW = fitW; drawH = (float)(fitW / ar); }
         }
         SkiaUtil.DrawScaled(canvas, img, new SKRect(-drawW / 2, -drawH / 2, drawW / 2, drawH / 2), Sampling);
         canvas.Restore();
     }
 
     private static void DrawCropMarks(SKCanvas canvas, AppState s,
-        List<(int DisplayCol, int Row)> filled, double baseX, double baseY,
-        double cutW, double cutH, double scale)
+        List<(int Col, int Row)> filled, double baseX, double baseY, double scale)
     {
         var paper = s.Paper;
         // Толщины как в jsPDF-экспорте оригинала: чёрная 0.2 мм, гало +0.9 мм;
@@ -149,10 +188,10 @@ public static class PageRenderer
         var allSegs = new List<CropSeg>();
         foreach (var f in filled)
         {
-            double mx = baseX + f.DisplayCol * s.CardWidth + s.Bleed;
-            double my = baseY + f.Row * s.CardHeight + s.Bleed;
-            allSegs.AddRange(LayoutEngine.BuildCropMarks(mx, my, cutW, cutH,
-                f.Row, f.DisplayCol, s.CardsPerCol, s.CardsPerRow, paper.Width, paper.Height));
+            double mx = baseX + f.Col * s.CellWidth + s.Bleed;
+            double my = baseY + f.Row * s.CellHeight + s.Bleed;
+            allSegs.AddRange(LayoutEngine.BuildCropMarks(mx, my, s.CellCutWidth, s.CellCutHeight,
+                f.Row, f.Col, s.CardsPerCol, s.CardsPerRow, paper.Width, paper.Height));
         }
 
         void Layer(SKColor color, float thick)
@@ -207,19 +246,10 @@ public static class PageRenderer
     private static SKRect Rect(double x, double y, double w, double h, double scale) =>
         new((float)(x * scale), (float)(y * scale), (float)((x + w) * scale), (float)((y + h) * scale));
 
-    private static readonly SKTypeface SansTypeface = ResolveSans();
-
-    private static SKTypeface ResolveSans()
-    {
-        // Нужен шрифт с кириллицей (подписи на мишени калибровки).
-        var tf = SKFontManager.Default.MatchCharacter('Я');
-        return tf ?? SKTypeface.Default;
-    }
-
     internal static void DrawCenteredText(SKCanvas canvas, string text, double cx, double baselineY,
         float sizePx, SKColor color)
     {
-        using var font = new SKFont(SansTypeface, sizePx);
+        using var font = new SKFont(AppFonts.PrintTypeface, sizePx);
         using var paint = new SKPaint { Color = color, IsAntialias = true };
         canvas.DrawText(text, (float)cx, (float)baselineY, SKTextAlign.Center, font, paint);
     }

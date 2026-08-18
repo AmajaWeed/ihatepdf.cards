@@ -12,6 +12,7 @@ using iHateCards.Dialogs;
 using iHateCards.Imaging;
 using iHateCards.Pdf;
 using iHateCards.Printing;
+using iHateCards.Update;
 using SkiaSharp;
 
 namespace iHateCards;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
         Wire();
         Recalc();
         UpdateTitle();
+        Opened += (_, _) => _ = CheckForUpdatesAsync(silent: true);
         AddHandler(DragDrop.DropEvent, OnWindowDrop);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
     }
@@ -170,8 +172,19 @@ public partial class MainWindow : Window
         {
             if (_updating) return;
             _s.AutoRotate = AutoRotateToggle.IsChecked == true;
+            // общий переключатель задаёт значение всем картам и новым по умолчанию
+            foreach (var e in AllEntries()) e.AutoRotateImage = _s.AutoRotate;
             MarkDirty();
+            RenderCardList();
             RenderPreview();
+        };
+
+        AutoRotateFrameToggle.IsCheckedChanged += (_, _) =>
+        {
+            if (_updating) return;
+            _s.AutoRotateFrame = AutoRotateFrameToggle.IsChecked == true;
+            MarkDirty();
+            Recalc();
         };
 
         BorderlessToggle.IsCheckedChanged += (_, _) =>
@@ -335,6 +348,7 @@ public partial class MainWindow : Window
             Recalc();
         };
 
+        UpdateBtn.Click += async (_, _) => await CheckForUpdatesAsync(silent: false);
         SaveProjectBtn.Click += async (_, _) => await SaveProject(saveAs: false);
         OpenProjectBtn.Click += async (_, _) => await OpenProjectViaDialog();
 
@@ -453,7 +467,11 @@ public partial class MainWindow : Window
                 {
                     byte[] bytes = File.ReadAllBytes(path);
                     foreach (var frame in RasterDecoder.Decode(bytes, Path.GetFileName(path)))
-                        newEntries.Add(RasterDecoder.ToEntry(frame));
+                    {
+                        var e = RasterDecoder.ToEntry(frame);
+                        e.AutoRotateImage = _s.AutoRotate;
+                        newEntries.Add(e);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -495,6 +513,7 @@ public partial class MainWindow : Window
                 var frames = RasterDecoder.Decode(bytes, Path.GetFileName(path));
                 if (frames.Count == 0) return;
                 var entry = RasterDecoder.ToEntry(frames[0]);
+                entry.AutoRotateImage = _s.AutoRotate;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     _s.BackImage?.Dispose();
@@ -532,6 +551,7 @@ public partial class MainWindow : Window
             {
                 _pendingBackFor.BackImage?.Dispose();
                 _pendingBackFor.BackImage = RasterDecoder.ToEntry(frames[0]);
+                _pendingBackFor.BackImage.AutoRotateImage = _s.AutoRotate;
                 if (_softproof) _ = EnsureProofsAndRefresh();
                 MarkDirty();
                 RenderCardList();
@@ -717,7 +737,7 @@ public partial class MainWindow : Window
             };
             var root = new StackPanel { Spacing = 4 };
 
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("40,*,Auto,Auto") };
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("40,*,Auto,Auto,Auto") };
             var thumb = new Image { Width = 36, Height = 36, Stretch = Stretch.UniformToFill, Source = ThumbOf(img) };
             Grid.SetColumn(thumb, 0);
             var name = new TextBlock
@@ -729,6 +749,21 @@ public partial class MainWindow : Window
                 FontSize = 12
             };
             Grid.SetColumn(name, 1);
+
+            var rotate = new CheckBox
+            {
+                IsChecked = img.AutoRotateImage,
+                VerticalAlignment = VerticalAlignment.Center,
+                MinWidth = 0,
+                Padding = new Thickness(0)
+            };
+            ToolTip.SetTip(rotate, "Авто-разворот изображения в кадре");
+            rotate.IsCheckedChanged += (_, _) =>
+            {
+                img.AutoRotateImage = rotate.IsChecked == true;
+                MarkDirty();
+                RenderPreview();
+            };
 
             var qty = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
             var minus = SmallBtn("−");
@@ -745,7 +780,8 @@ public partial class MainWindow : Window
             qty.Children.Add(minus);
             qty.Children.Add(qtyText);
             qty.Children.Add(plus);
-            Grid.SetColumn(qty, 2);
+            Grid.SetColumn(rotate, 2);
+            Grid.SetColumn(qty, 3);
 
             var remove = SmallBtn("×");
             remove.Foreground = new SolidColorBrush(Color.Parse("#f87171"));
@@ -757,10 +793,11 @@ public partial class MainWindow : Window
                 RenderCardList();
                 Recalc();
             };
-            Grid.SetColumn(remove, 3);
+            Grid.SetColumn(remove, 4);
 
             row.Children.Add(thumb);
             row.Children.Add(name);
+            row.Children.Add(rotate);
             row.Children.Add(qty);
             row.Children.Add(remove);
             root.Children.Add(row);
@@ -919,12 +956,12 @@ public partial class MainWindow : Window
 
     private async Task PrintFlow()
     {
-        if (!OperatingSystem.IsWindows())
+        if (!PrintService.IsSupported)
         {
-            await Msg.Show(this, "Печать", "Печать доступна в Windows-версии приложения.");
+            await Msg.Show(this, "Печать", "Печать поддерживается в Windows- и macOS-версиях.");
             return;
         }
-        var (printers, defaultPrinter) = WinSpool.ListPrinters();
+        var (printers, defaultPrinter) = PrintService.ListPrinters();
         if (printers.Count == 0)
         {
             await Msg.Show(this, "Печать", "Принтеры не найдены");
@@ -933,6 +970,11 @@ public partial class MainWindow : Window
         var dlg = new PrintDialog(printers, defaultPrinter, _s.DuplexMode && _s.HasAnyBack());
         await dlg.ShowDialog(this);
         if (dlg.Result is not { } opts) return;
+
+        // Профиль принтера задаёт сторону переворота, смещения оборота и калибровку
+        dlg.Profile.ApplyTo(_s);
+        SyncDuplexInputs();
+        RenderPreview();
 
         PrintResult? result = null;
         await WithOverlay("Печать...", () => Task.Run(() => { result = PrintService.Print(_s, opts); }));
@@ -1020,9 +1062,37 @@ public partial class MainWindow : Window
             return;
         }
         if (side == "back") _s.CalibBack = calib; else _s.CalibFront = calib;
+        SaveCalibrationToProfile(side, calib);
         resultLabel.Text = $"Смещение: {calib.Dx:0.##} × {calib.Dy:0.##} мм · Угол: {calib.Angle:0.##}°";
         MarkDirty();
         RenderPreview();
+    }
+
+    /// <summary>Сохраняет измеренную калибровку в профиль принтера (.hateprn),
+    /// чтобы она пережила перезапуск и переносилась вместе с профилем.</summary>
+    private void SaveCalibrationToProfile(string side, CalibSide calib)
+    {
+        try
+        {
+            string printer = SettingsStore.Load()["lastPrinter"]?.GetValue<string>() ?? "";
+            if (string.IsNullOrEmpty(printer)) return;
+            var profile = PrinterProfile.Load(printer);
+            profile.SetAutoCalibration(side, calib);
+            profile.Save();
+        }
+        catch
+        {
+            // профиль не обязателен — калибровка всё равно применена к текущей раскладке
+        }
+    }
+
+    /// <summary>Синхронизирует поля смещения оборота после применения профиля.</summary>
+    private void SyncDuplexInputs()
+    {
+        _updating = true;
+        OffsetXInput.Value = (decimal)_s.OffsetX;
+        OffsetYInput.Value = (decimal)_s.OffsetY;
+        _updating = false;
     }
 
     // ---------------------------------------------------------------- .hate
@@ -1128,6 +1198,7 @@ public partial class MainWindow : Window
         NoHaloToggle.IsChecked = _s.NoHaloMarks;
         FitImageToggle.IsChecked = _s.FitImage;
         AutoRotateToggle.IsChecked = _s.AutoRotate;
+        AutoRotateFrameToggle.IsChecked = _s.AutoRotateFrame;
         PolaroidToggle.IsChecked = _s.PolaroidMode;
         PolaroidOptions.IsVisible = _s.PolaroidMode;
         PolaroidSideInput.Value = (decimal)_s.PolaroidSide;
@@ -1160,6 +1231,33 @@ public partial class MainWindow : Window
     {
         string name = _projectPath != null ? Path.GetFileName(_projectPath) : "новый проект";
         Title = $"iHateCards — {name}{(_dirty ? " *" : "")}";
+    }
+
+    // ---------------------------------------------------------------- обновления
+
+    private UpdateToast? _updateToast;
+
+    /// <summary>Проверка обновлений: при запуске — молча (ошибки сети игнорируются),
+    /// по кнопке — с сообщением, если обновлений нет.</summary>
+    private async Task CheckForUpdatesAsync(bool silent)
+    {
+        if (App.UiShotPath != null && UpdateChecker.ManifestUrl == UpdateChecker.DefaultManifestUrl)
+            return;                                      // служебный режим скриншота
+        if (silent && !UpdateChecker.AutoCheckEnabled) return;
+        if (silent) await Task.Delay(TimeSpan.FromSeconds(3));
+
+        var info = await UpdateChecker.CheckAsync(ignoreSkipped: !silent);
+        if (info == null)
+        {
+            if (!silent)
+                await Msg.Show(this, "Обновления",
+                    $"Установлена последняя версия ({AppVersion.Current}).");
+            return;
+        }
+
+        _updateToast?.Close();
+        _updateToast = new UpdateToast(info);
+        _updateToast.Show(this);
     }
 
     // ---------------------------------------------------------------- утилиты

@@ -48,13 +48,23 @@ public static class PrintService
         return pages;
     }
 
+    /// <summary>Список принтеров и принтер по умолчанию для текущей ОС.</summary>
+    public static (List<string> Printers, string Default) ListPrinters()
+    {
+        if (OperatingSystem.IsWindows()) return WinSpool.ListPrinters();
+        if (OperatingSystem.IsMacOS()) return MacPrint.ListPrinters();
+        return (new List<string>(), "");
+    }
+
+    public static bool IsSupported => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+
     public static PrintResult Print(AppState s, PrintOptions o)
     {
-        if (!OperatingSystem.IsWindows())
-            return new PrintResult(false, o.Printer, "", "Печать доступна только в Windows-версии");
+        if (!IsSupported)
+            return new PrintResult(false, o.Printer, "", "Печать поддерживается в Windows- и macOS-версиях");
 
         string name = o.Printer;
-        if (string.IsNullOrEmpty(name)) name = WinSpool.GetDefaultPrinter();
+        if (string.IsNullOrEmpty(name)) name = ListPrinters().Default;
         if (string.IsNullOrEmpty(name))
             return new PrintResult(false, "", "", "Принтер не найден");
 
@@ -93,10 +103,15 @@ public static class PrintService
                         NetPrint.RawPrintTcp(ip, ps);
                         mode = $"CMYK / PostScript (IP {ip}:9100)";
                     }
-                    else
+                    else if (OperatingSystem.IsWindows())
                     {
                         WinSpool.RawPrint(name, ps);
                         mode = "CMYK / PostScript (спулер)";
+                    }
+                    else
+                    {
+                        MacPrint.RawPrint(name, ps);
+                        mode = "CMYK / PostScript (CUPS)";
                     }
                 }
                 finally
@@ -139,7 +154,9 @@ public static class PrintService
                     byte[] pdf = RgbPdfWriter.Build(rgbPages, scale);
                     string tmp = Path.Combine(SettingsPaths.DataDir, "print_job.pdf");
                     File.WriteAllBytes(tmp, pdf);
-                    mode = GhostscriptPrinter.PrintPdf(name, tmp, o.Copies, fit, dpi);
+                    mode = OperatingSystem.IsWindows()
+                        ? GhostscriptPrinter.PrintPdf(name, tmp, o.Copies, fit, dpi)
+                        : MacPrint.PrintPdf(name, tmp, o.Copies, fit, o.Duplex, o.Tumble);
                 }
                 finally
                 {
