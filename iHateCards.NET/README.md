@@ -73,7 +73,7 @@ dotnet publish src/iHateCards/iHateCards.csproj -c Release -r win-x64 --self-con
 ./installer/build-installer.sh
 ```
 
-Скрипт публикует приложение и собирает `publish/iHateCards-2.1.0-x64.msi`
+Скрипт публикует приложение и собирает `publish/iHateCards-1.0.0-x64.msi`
 (~62 МБ): установка в `%LOCALAPPDATA%\Programs\iHateCards` **без запроса прав
 администратора** (именно поэтому возможно и обновление по сети), ярлыки в меню
 «Пуск» и на рабочем столе, **ассоциация файлов `.hate`** (двойной клик открывает
@@ -89,7 +89,7 @@ dotnet publish src/iHateCards/iHateCards.csproj -c Release -r win-x64 --self-con
 ## macOS
 
 ```
-./installer/build-macos.sh 2.1.0 arm64
+./installer/build-macos.sh 1.0.0 arm64
 ```
 
 Собирает `iHateCards.app` (Info.plist с ассоциацией `.hate`, иконка `.icns`,
@@ -105,8 +105,8 @@ ad-hoc-подпись) и **оформленный DMG**: в окне образ
 ## Релиз и обновления
 
 ```
-./installer/build-release.sh 2.1.0            # собрать пакеты + updates.json
-./installer/build-release.sh 2.1.0 --publish  # и выложить релиз
+./installer/build-release.sh 1.0.0            # собрать пакеты + updates.json
+./installer/build-release.sh 1.0.0 --publish  # и выложить релиз
 ```
 
 Скрипт собирает пакеты для win-x64/osx-arm64/osx-x64, считает SHA-256 и формирует

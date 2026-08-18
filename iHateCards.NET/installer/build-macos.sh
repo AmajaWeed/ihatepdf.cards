@@ -5,7 +5,7 @@
 #   arch: arm64 (по умолчанию) | x64
 set -euo pipefail
 
-VERSION="${1:-2.1.0}"
+VERSION="${1:-1.0.0}"
 ARCH="${2:-arm64}"
 RID="osx-$ARCH"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

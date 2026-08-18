@@ -8,7 +8,7 @@
 # Использование:  ./installer/build-installer.sh [версия]
 set -euo pipefail
 
-VERSION="${1:-2.0.0}"
+VERSION="${1:-1.0.0}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBDIR="$ROOT/publish/win-x64"
 OUT="$ROOT/publish/iHateCards-$VERSION-x64.msi"
