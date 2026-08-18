@@ -11,6 +11,8 @@ RID="osx-$ARCH"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$ROOT/publish/$RID"
 APP="$ROOT/publish/iHateCards.app"
+# CFBundleVersion принимает только числа — букву версии (1.0.0b) отбрасываем
+PLIST_VERSION="$(printf '%s' "$VERSION" | tr -d 'A-Za-z')"
 DMG="$ROOT/publish/iHateCards-$VERSION-$ARCH.dmg"
 
 echo "==> Публикация ($RID)"
@@ -46,8 +48,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key>              <string>iHateCards</string>
     <key>CFBundleDisplayName</key>       <string>iHateCards</string>
     <key>CFBundleIdentifier</key>        <string>ru.ihatepdf.ihatecards</string>
-    <key>CFBundleVersion</key>           <string>$VERSION</string>
-    <key>CFBundleShortVersionString</key><string>$VERSION</string>
+    <key>CFBundleVersion</key>           <string>$PLIST_VERSION</string>
+    <key>CFBundleShortVersionString</key><string>$PLIST_VERSION</string>
     <key>CFBundlePackageType</key>       <string>APPL</string>
     <key>CFBundleExecutable</key>        <string>iHateCards</string>
     <key>CFBundleIconFile</key>          <string>iHateCards.icns</string>

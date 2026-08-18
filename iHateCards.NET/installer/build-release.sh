@@ -15,6 +15,21 @@ PUBLISH="${2:-}"
 UPDATES_REPO="${IHATECARDS_UPDATES_REPO:-AmajaWeed/ihatecards-updates}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Версия может иметь буквенный суффикс (1.0.0b): для сборки нужна числовая
+# (буква становится четвёртой частью: b → 1.0.0.2), показывается — исходная.
+NUMERIC_VERSION="$(python3 - "$VERSION" <<'PYVER'
+import re, sys
+v = sys.argv[1]
+m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)([A-Za-z]?)", v)
+if not m:
+    print(v)
+else:
+    major, minor, patch, letter = m.groups()
+    rev = ord(letter.lower()) - ord("a") + 1 if letter else 0
+    print(f"{major}.{minor}.{patch}.{rev}")
+PYVER
+)"
 OUT="$ROOT/publish/release-$VERSION"
 NOTES_FILE="$ROOT/installer/release-notes.txt"
 rm -rf "$OUT"; mkdir -p "$OUT"
@@ -26,7 +41,8 @@ pack() {                       # pack <rid>
     local dir="$ROOT/publish/$rid"
     echo "==> Публикация $rid"
     dotnet publish "$ROOT/src/iHateCards/iHateCards.csproj" \
-        -c Release -r "$rid" --self-contained -o "$dir" -p:Version="$VERSION" -v quiet
+        -c Release -r "$rid" --self-contained -o "$dir" \
+        -p:Version="$NUMERIC_VERSION" -p:InformationalVersion="$VERSION" -v quiet
     rm -f "$dir"/*.pdb
 
     local zip="$OUT/iHateCards-$VERSION-$rid.zip"
