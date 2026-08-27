@@ -85,9 +85,6 @@ function DownloadAndInstall(AppDir: String): Boolean;
 var
   ScriptPath, LogPath, Line, Content: String;
   ResultCode: Integer;
-  Lines: TArrayOfString;
-  Log: TStringList;
-  i: Integer;
 begin
   Result := False;
   ScriptPath := ExpandConstant('{tmp}\ihatecards-install.ps1');
@@ -132,8 +129,8 @@ begin
     end;
 
     Line := '';
-    if FileExists(LogPath) and LoadStringFromFile(LogPath, Content) then
-      Line := Content;
+    if FileExists(LogPath) then
+      LoadStringFromFileW(LogPath, Line);
 
     if (ResultCode = 0) and (Copy(Line, 1, 3) = 'OK:') then
     begin
@@ -143,7 +140,7 @@ begin
     else
     begin
       if Copy(Line, 1, 4) = 'ERR:' then
-        Line := Copy(Line, 5, Length(Line) - 4)
+        Line := Trim(Copy(Line, 5, Length(Line) - 4))
       else if Line = '' then
         Line := 'код ошибки ' + IntToStr(ResultCode);
       MsgBox('Не удалось скачать iHateCards.' + #13#10 + #13#10 + Line + #13#10 + #13#10 +
