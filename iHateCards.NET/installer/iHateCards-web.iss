@@ -84,6 +84,7 @@ var
 function DownloadAndInstall(AppDir: String): Boolean;
 var
   ScriptPath, LogPath, Line, Content: String;
+  LogContent: AnsiString;
   ResultCode: Integer;
 begin
   Result := False;
@@ -105,9 +106,9 @@ begin
     '  if (Test-Path $dest) { Get-ChildItem -Path $dest -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue } else { New-Item -ItemType Directory -Path $dest -Force | Out-Null }' + #13#10 +
     '  Expand-Archive -Path $tmp -DestinationPath $dest -Force' + #13#10 +
     '  Set-Content -Path (Join-Path $dest ''.web-installer-version'') -Value $manifest.latest -Encoding UTF8 -NoNewline' + #13#10 +
-    '  "OK:" + $manifest.latest | Out-File -FilePath ''' + LogPath + ''' -Encoding UTF8' + #13#10 +
+    '  "OK:" + $manifest.latest | Out-File -FilePath ''' + LogPath + ''' -Encoding ASCII' + #13#10 +
     '} catch {' + #13#10 +
-    '  ("ERR:" + $_.Exception.Message) | Out-File -FilePath ''' + LogPath + ''' -Encoding UTF8' + #13#10 +
+    '  ("ERR:" + $_.Exception.Message) | Out-File -FilePath ''' + LogPath + ''' -Encoding ASCII' + #13#10 +
     '  exit 1' + #13#10 +
     '} finally {' + #13#10 +
     '  if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }' + #13#10 +
@@ -129,8 +130,8 @@ begin
     end;
 
     Line := '';
-    if FileExists(LogPath) then
-      LoadStringFromFileW(LogPath, Line);
+    if FileExists(LogPath) and LoadStringFromFile(LogPath, LogContent) then
+      Line := String(LogContent);
 
     if (ResultCode = 0) and (Copy(Line, 1, 3) = 'OK:') then
     begin
