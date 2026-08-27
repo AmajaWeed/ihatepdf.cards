@@ -1,5 +1,8 @@
-# Сборка Windows-установщика (Inno Setup) — он умеет спрашивать, куда ставить.
-# Inno работает только на Windows, поэтому собираем на windows-раннере.
+# Сборка Windows-установщиков (Inno Setup): обычного и веб- (скачивает latest
+# сам, без версии в имени). Исходники .NET-версии живут в ветке dotnet-rewrite
+# — этот файл лежит на main только потому, что GitHub запускает
+# workflow_dispatch лишь с дефолтной ветки; сама сборка чекаутит именно
+# dotnet-rewrite (через input ref) и ничего в main не меняет.
 name: Windows installer
 
 on:
@@ -9,12 +12,18 @@ on:
         description: "Версия, например 1.0.1"
         required: true
         default: "1.0.1"
+      ref:
+        description: "Ветка/коммит с исходниками"
+        required: true
+        default: "dotnet-rewrite"
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-dotnet@v4
         with:
