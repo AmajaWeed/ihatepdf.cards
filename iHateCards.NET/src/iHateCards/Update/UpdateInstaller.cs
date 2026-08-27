@@ -119,23 +119,56 @@ public static class UpdateInstaller
 
         if (OperatingSystem.IsWindows())
         {
+            string logPath = Path.Combine(UpdatesDir, "apply-update.log");
+            // Move-Item сразу после закрытия программы иногда натыкается на файл,
+            // ещё на секунду занятый антивирусом/индексатором (сама программа к
+            // этому моменту уже закрыта — Wait-Process это гарантирует) — раньше
+            // единственная попытка в этом случае молча проваливалась, откатывала
+            // папку и подмена так и не происходила. Несколько попыток с паузой —
+            // стандартное лекарство от такой гонки при самообновлении на Windows.
             File.WriteAllText(scriptPath, $@"
 $ErrorActionPreference = 'Stop'
 $target  = '{target}'
 $staging = '{stagingRoot}'
 $backup  = '{backup}'
+$log     = '{logPath}'
 
-# Дождаться закрытия программы (иначе файлы заняты)
+function Log($msg) {{
+    ""$(Get-Date -Format o)  $msg"" | Out-File -FilePath $log -Append -Encoding UTF8
+}}
+
+function Move-WithRetry($from, $to) {{
+    $attempt = 0
+    while ($true) {{
+        $attempt++
+        try {{
+            Move-Item -LiteralPath $from -Destination $to -Force
+            return
+        }} catch {{
+            if ($attempt -ge 6) {{ throw }}
+            Log ""попытка $attempt переместить '$from' -> '$to' не удалась: $($_.Exception.Message) — повтор""
+            Start-Sleep -Milliseconds (500 * $attempt)
+        }}
+    }}
+}}
+
+Log 'запуск apply-update, ожидание завершения процесса {pid}'
 try {{ Wait-Process -Id {pid} -Timeout 120 -ErrorAction SilentlyContinue }} catch {{}}
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 1000
 
 if (Test-Path $backup) {{ Remove-Item $backup -Recurse -Force -ErrorAction SilentlyContinue }}
 try {{
-    Move-Item -LiteralPath $target -Destination $backup -Force
-    Move-Item -LiteralPath $staging -Destination $target -Force
+    Move-WithRetry $target $backup
+    Move-WithRetry $staging $target
+    Log 'подмена выполнена успешно'
 }} catch {{
+    Log ""подмена не удалась: $($_.Exception.Message)""
     # Откат: возвращаем прежнюю версию
-    if ((Test-Path $backup) -and -not (Test-Path $target)) {{ Move-Item -LiteralPath $backup -Destination $target -Force }}
+    if ((Test-Path $backup) -and -not (Test-Path $target)) {{
+        Move-Item -LiteralPath $backup -Destination $target -Force
+        Log 'откат к прежней версии выполнен'
+    }}
+    Start-Process -FilePath '{exe}'
     throw
 }}
 Remove-Item $backup -Recurse -Force -ErrorAction SilentlyContinue
@@ -152,8 +185,12 @@ Start-Process -FilePath '{exe}'
         }
         else
         {
+            // Без set -e: обе mv-команды разбираются вручную, чтобы при сбое
+            // всё равно перезапустить программу (пусть и старой версией) —
+            // раньше при сбое скрипт просто останавливался, и пользователь
+            // оставался без запущенной программы вовсе, что на баг-репорте
+            // выглядит так же, как «обновление не сработало».
             File.WriteAllText(scriptPath, $@"#!/bin/sh
-set -e
 target='{target}'
 staging='{stagingRoot}'
 backup='{backup}'
@@ -163,22 +200,29 @@ i=0
 while kill -0 {pid} 2>/dev/null && [ $i -lt 120 ]; do sleep 1; i=$((i+1)); done
 sleep 1
 
+relaunch() {{
+    if [ -d ""$target/Contents"" ]; then
+        # Обновлённый бандл переподписываем (ad-hoc), иначе macOS откажется запускать
+        codesign --force --deep --sign - ""$target"" 2>/dev/null || true
+        open ""$target""
+    else
+        chmod +x '{exe}' 2>/dev/null || true
+        '{exe}' &
+    fi
+}}
+
 rm -rf ""$backup""
-mv ""$target"" ""$backup""
+if ! mv ""$target"" ""$backup""; then
+    relaunch   # первый mv не удался — старая версия так и осталась на месте
+    exit 1
+fi
 if ! mv ""$staging"" ""$target""; then
     mv ""$backup"" ""$target""   # откат
+    relaunch                    # старая версия должна остаться рабочей
     exit 1
 fi
 rm -rf ""$backup""
-
-# Обновлённый бандл переподписываем (ad-hoc), иначе macOS откажется запускать
-if [ -d ""$target/Contents"" ]; then
-    codesign --force --deep --sign - ""$target"" 2>/dev/null || true
-    open ""$target""
-else
-    chmod +x '{exe}' 2>/dev/null || true
-    '{exe}' &
-fi
+relaunch
 ");
             Process.Start(new ProcessStartInfo
             {
