@@ -17,10 +17,7 @@ public sealed record PsOptions(
     double Scale,
     bool Fit,
     string? MediaType = null,     // напр. "Heavyweight", "Cardstock" — имя из списка принтера
-    int MediaWeight = 0,          // г/м², 0 — не указывать
-    int MediaPosition = -1,       // номер лотка (из /InputAttributes драйвера), -1 — не указывать
-    bool ManualFeed = false,      // обходной лоток с ручной подачей
-    string? TrayName = null);     // название лотка у драйвера, напр. "Лоток 5" — для PJL INPUTTRAY
+    int MediaWeight = 0);         // г/м², 0 — не указывать
 
 /// <summary>
 /// DeviceCMYK (или DeviceGray для ч/б) PostScript Level 3 для прямой RAW-печати
@@ -33,16 +30,13 @@ public static class PostScriptWriter
     /// Собирает словарь setpagedevice с выбранным носителем (пустая строка,
     /// если ничего не задано — тогда решает принтер).
     ///
-    /// Лоток выбирается через <c>/InputAttributes</c> — это единственный
-    /// документированный в спецификации Adobe PostScript способ указать
-    /// конкретный физический лоток: словарь с числовым индексом лотка (тем
-    /// самым, что драйвер возвращает как номер лотка) и вложенным
-    /// <c>/Priority 1</c>, плюс <c>/Policies /InputAttributes 0</c>, чтобы RIP
-    /// не подменял лоток автоматически. Прежняя версия писала несуществующий
-    /// ключ <c>/MediaPosition N setpagedevice</c> — это не операторPostScript,
-    /// и принтер молча его игнорировал (неизвестные ключи в setpagedevice не
-    /// вызывают ошибку, а просто ничего не делают) — печать успешно уходила,
-    /// но не из того лотка.
+    /// Больше не пишет ничего про лоток (/InputAttributes, /Policies,
+    /// /ManualFeed): выбор конкретного физического лотка через PostScript
+    /// оказался ненадёжным на практике — RIP части принтеров либо
+    /// игнорировал его, либо из-за него портил остальную печать. Тип и
+    /// плотность бумаги RIP-у передать по-прежнему нужно (RAW-задание идёт
+    /// мимо драйвера, иначе печать ушла бы как на обычной бумаге) —
+    /// физический лоток пусть выбирает сам принтер/пользователь.
     /// </summary>
     internal static string MediaDict(PsOptions opts)
     {
@@ -51,13 +45,6 @@ public static class PostScriptWriter
             parts.Add($"/MediaType ({EscapePsString(opts.MediaType!.Trim())})");
         if (opts.MediaWeight > 0)
             parts.Add($"/MediaWeight {opts.MediaWeight}");
-        if (opts.ManualFeed)
-            parts.Add("/ManualFeed true");
-        if (opts.MediaPosition >= 0)
-        {
-            parts.Add($"/InputAttributes << {opts.MediaPosition} << /Priority 1 >> >>");
-            parts.Add("/Policies << /InputAttributes 0 >>");
-        }
         return parts.Count == 0 ? "" : "<< " + string.Join(" ", parts) + " >>";
     }
 
@@ -95,10 +82,6 @@ public static class PostScriptWriter
             sb.Append("@PJL SET MEDIATYPE=\"").Append(PjlEscape(opts.MediaType!.Trim())).Append("\"\n");
         if (opts.MediaWeight > 0)
             sb.Append("@PJL SET PAPERWEIGHT=").Append(opts.MediaWeight).Append('\n');
-        if (opts.ManualFeed)
-            sb.Append("@PJL SET INPUTTRAY=MANUALFEED\n");
-        else if (InputTrayKeyword(opts) is { } tray)
-            sb.Append("@PJL SET INPUTTRAY=").Append(tray).Append('\n');
         sb.Append("@PJL ENTER LANGUAGE=POSTSCRIPT\n");
         return Encoding.Latin1.GetBytes(sb.ToString());
     }
@@ -111,32 +94,7 @@ public static class PostScriptWriter
     }
 
     private static bool HasMedia(PsOptions opts) =>
-        !string.IsNullOrWhiteSpace(opts.MediaType) || opts.MediaWeight > 0
-        || opts.ManualFeed || opts.MediaPosition >= 0;
-
-    /// <summary>
-    /// Значение для PJL INPUTTRAY — второй, независимый от /InputAttributes
-    /// способ выбрать лоток. Контроллер МФУ (Xerox и подобные) согласовывает
-    /// лоток на уровне PJL до PostScript, а числовые индексы /InputAttributes
-    /// в PPD принтера — своя, отдельная от Windows нумерация лотков, поэтому
-    /// голый номер драйвера может просто не совпасть с ожидаемым PPD индексом.
-    /// Если известно имя лотка у драйвера (напр. «Лоток 5»), вытаскиваем из
-    /// него номер и собираем стандартный ключ TRAYn — его понимает
-    /// подавляющее большинство PJL-принтеров вне зависимости от вендора. Без
-    /// имени — тот же приём по числовому /InputAttributes индексу (сработает,
-    /// если он и правда совпадает с порядковым номером лотка).
-    /// </summary>
-    internal static string? InputTrayKeyword(PsOptions opts)
-    {
-        if (!string.IsNullOrWhiteSpace(opts.TrayName))
-        {
-            var digits = new string(opts.TrayName!.Where(char.IsDigit).ToArray());
-            if (digits.Length > 0) return "TRAY" + digits;
-        }
-        if (opts.MediaPosition > 0 && opts.MediaPosition <= 20)
-            return "TRAY" + opts.MediaPosition;
-        return null;
-    }
+        !string.IsNullOrWhiteSpace(opts.MediaType) || opts.MediaWeight > 0;
 
     /// <summary>PJL-значения не переносят кавычки — заменяем на одинарные.</summary>
     private static string PjlEscape(string s) => s.Replace("\"", "'");

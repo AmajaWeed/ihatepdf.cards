@@ -116,9 +116,7 @@ public static class PrintService
                     }
                     byte[] ps = PostScriptWriter.Build(psPages,
                         new PsOptions(o.Copies, o.Duplex, o.Tumble, o.Fit ? 1.0 : o.Scale, o.Fit,
-                            MediaType: o.MediaType, MediaWeight: o.MediaWeight,
-                            MediaPosition: o.MediaPosition, ManualFeed: o.ManualFeed,
-                            TrayName: o.MediaTrayName));
+                            MediaType: o.MediaType, MediaWeight: o.MediaWeight));
 
                     string ip = o.Ip.Trim();
                     if (ip.Length > 0)

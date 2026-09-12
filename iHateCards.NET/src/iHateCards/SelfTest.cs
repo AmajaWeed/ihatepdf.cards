@@ -316,22 +316,21 @@ public static class SelfTest
         Check(text.Contains("/DeviceCMYK setcolorspace"), "DeviceCMYK");
         Check(text.Contains("%%Page: 1 1"), "страница");
 
-        // Носитель: тип, плотность и лоток должны попадать в задание — RAW-печать
-        // идёт мимо драйвера, и без этого принтер берёт бумагу по умолчанию
+        // Носитель: тип и плотность должны попадать в задание — RAW-печать
+        // идёт мимо драйвера, и без этого принтер берёт бумагу по умолчанию.
+        // Выбор конкретного лотка через PostScript больше не пишется — на
+        // практике оказался ненадёжным (RIP части принтеров либо его
+        // игнорировал, либо из-за него портил остальную печать).
         var psMedia = PostScriptWriter.Build(
             new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },
             new PsOptions(1, false, false, 1.0, false,
-                MediaType: "Heavyweight", MediaWeight: 250, MediaPosition: 258, ManualFeed: true));
+                MediaType: "Heavyweight", MediaWeight: 250));
         string mediaText = System.Text.Encoding.Latin1.GetString(psMedia);
         Check(mediaText.Contains("/MediaType (Heavyweight)"), "тип бумаги в задании");
         Check(mediaText.Contains("/MediaWeight 250"), "плотность бумаги");
-        Check(mediaText.Contains("/ManualFeed true"), "ручная подача");
-        Check(!mediaText.Contains("/MediaPosition"),
-            "несуществующего ключа /MediaPosition больше нет (RIP молча его игнорировал)");
-        Check(mediaText.Contains("/InputAttributes << 258 << /Priority 1 >> >>"),
-            "лоток выбирается через документированный /InputAttributes");
-        Check(mediaText.Contains("/Policies << /InputAttributes 0 >>"),
-            "запрет автозамены лотка (Policies)");
+        Check(!mediaText.Contains("/ManualFeed") && !mediaText.Contains("/InputAttributes")
+              && !mediaText.Contains("/Policies") && !mediaText.Contains("/MediaPosition"),
+            "выбор лотка (ManualFeed/InputAttributes/Policies/MediaPosition) в задании отсутствует");
         Check(mediaText.IndexOf("setpagedevice", StringComparison.Ordinal)
               < mediaText.IndexOf("%%Page:", StringComparison.Ordinal),
             "носитель задан до первой страницы");
@@ -373,24 +372,6 @@ public static class SelfTest
 
         Check(PostScriptWriter.PjlPrefix(new PsOptions(1, false, false, 1.0, false)).Length == 0,
             "без носителя PJL-обёртки нет (не мешает обычным принтерам)");
-
-        // Лоток — вторая, независимая от /InputAttributes попытка выбрать
-        // лоток: PJL INPUTTRAY=TRAYn. Числовой /InputAttributes индекс из
-        // Windows DeviceCapabilities — своя нумерация, не обязана совпадать
-        // с нумерацией лотков в PPD принтера, поэтому нужен запасной путь.
-        Check(PostScriptWriter.PjlPrefix(new PsOptions(1, false, false, 1.0, false, MediaPosition: 5)).Length > 0,
-            "выбор одного лотка (без типа/плотности) тоже включает PJL-обёртку");
-        string pjlTrayByPosition = System.Text.Encoding.Latin1.GetString(
-            PostScriptWriter.PjlPrefix(new PsOptions(1, false, false, 1.0, false, MediaPosition: 5)));
-        Check(pjlTrayByPosition.Contains("@PJL SET INPUTTRAY=TRAY5"),
-            "PJL INPUTTRAY по числовому индексу лотка");
-        string pjlTrayByName = System.Text.Encoding.Latin1.GetString(
-            PostScriptWriter.PjlPrefix(new PsOptions(1, false, false, 1.0, false,
-                MediaPosition: 258, TrayName: "Лоток 5")));
-        Check(pjlTrayByName.Contains("@PJL SET INPUTTRAY=TRAY5"),
-            "имя лотка у драйвера важнее голого числового индекса (258 → TRAY5, не TRAY258)");
-        Check(PostScriptWriter.InputTrayKeyword(new PsOptions(1, false, false, 1.0, false)) == null,
-            "без выбранного лотка PJL INPUTTRAY не пишется");
 
         byte[] psWithMedia = PostScriptWriter.Build(
             new[] { new PsPage(new byte[4], true, 2, 2, 100, 100) },

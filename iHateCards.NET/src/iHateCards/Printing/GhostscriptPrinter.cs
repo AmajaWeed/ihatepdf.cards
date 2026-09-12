@@ -45,6 +45,16 @@ public static class GhostscriptPrinter
             var args = new List<string> { "-dNOSAFER", "-dBATCH", "-dNOPAUSE", "-dPrinted", "-dNoCancel", "-q" };
             if (dpi is > 0) args.Add($"-r{dpi}");
             args.Add("-sDEVICE=mswinpr2");
+            // mswinpr2 otherwise negotiates whatever bit depth/color mode
+            // the driver currently defaults to. Confirmed symptom: gray
+            // shades come out dithered (halftone dot pattern instead of a
+            // smooth gradient) and color doesn't print at all — exactly
+            // what a reduced (e.g. 1-bit monochrome) negotiated depth would
+            // produce, forcing everything through error-diffusion even
+            // though -r{dpi} is set correctly. These two flags force full
+            // 24-bit true-color RGB, leaving no depth to dither into.
+            args.Add("-dBitsPerPixel=24");
+            args.Add("-sProcessColorModel=DeviceRGB");
             args.Add("-sOutputFile=%printer%" + printerName);
             if (fit) args.Add("-dPDFFitPage");
             args.Add(pdfPath);
